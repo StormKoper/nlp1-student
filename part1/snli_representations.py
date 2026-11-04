@@ -6,11 +6,7 @@ from scipy.sparse import csr_matrix, save_npz
 from tokenizers import Tokenizer
 from tqdm.auto import tqdm
 
-# Pathing 
-ROOT = Path(__file__).resolve().parent
-DATA_PATH = ROOT / "data" / "snli"
-TOKENIZER_PATH = ROOT / "snli_bpe.json"
-OUTPUT_PATH = ROOT / "data" / "representations"
+from .snli_config import DATA_PATH, TOKENIZER_PATH, REPRESENTATIONS_PATH
 
 # Load our cached dataset
 snli = load_from_disk(str(DATA_PATH))
@@ -120,7 +116,7 @@ def cache_representation(X, y, folds, path_name):
     """
     Save a computed representation and its associated labels and folds.
 
-    Creates a subdirectory under OUTPUT_PATH and stores the sparse
+    Creates a subdirectory under REPRESENTATIONS_PATH and stores the sparse
     feature matrix and corresponding NumPy arrays for later reuse.
 
     Args:
@@ -129,7 +125,7 @@ def cache_representation(X, y, folds, path_name):
         folds: Array of cross-validation fold assignments.
         path_name: Name of the subdirectory in which to save the files.
     """
-    LOCAL_PATH = OUTPUT_PATH / path_name
+    LOCAL_PATH = REPRESENTATIONS_PATH / path_name
 
     # Cache it
     LOCAL_PATH.mkdir(parents=True, exist_ok=True)
@@ -138,7 +134,7 @@ def cache_representation(X, y, folds, path_name):
     np.save(LOCAL_PATH / "folds.npy", folds)
 
     # Logging Output
-    print(f"Saved {X.shape[0]:,} examples, {X.shape[1]:,} features to {OUTPUT_PATH}")
+    print(f"Saved {X.shape[0]:,} examples, {X.shape[1]:,} features to {REPRESENTATIONS_PATH}")
     for fold in sorted(np.unique(folds)):
         print(f"Fold {fold}: {(folds != fold).sum():,} training examples")
 

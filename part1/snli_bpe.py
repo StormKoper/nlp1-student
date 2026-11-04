@@ -3,13 +3,10 @@ from pathlib import Path
 from datasets import load_from_disk
 from part1.experiment import train_tokenizer
 
-# Hyperparameters, guessed roughly for now
-VOCAB_SIZE = 10000
-MIN_FREQUENCY = 5
+from .snli_config import VOCAB_SIZE, MIN_FREQUENCY, DATA_PATH, TOKENIZER_PATH
 
-# Loading the file
-ROOT = Path(__file__).resolve().parent
-snli = load_from_disk(ROOT / "data" / "snli")
+
+snli = load_from_disk(DATA_PATH)
 
 # Specifying the corpus 
 def corpus():
@@ -24,4 +21,4 @@ tokenizer = train_tokenizer(
     min_frequency=MIN_FREQUENCY
 )
 
-tokenizer.save(str(ROOT / "snli_bpe.json"))        
+tokenizer.save(str(TOKENIZER_PATH))        

@@ -3,10 +3,7 @@ import numpy as np
 from datasets import load_dataset, DatasetDict
 import sklearn
 
-# Config
-K = 5
-SEED = 42
-SAVE_PATH = Path(__file__).resolve().parent / "data" / "snli" # Where the local cache will go 
+from .snli_config import DATA_PATH, K, SEED
 
 # 1. Download SNLI from Hugging Face
 snli = load_dataset("stanfordnlp/snli")
@@ -46,13 +43,13 @@ snli["train"] = train.add_column(
 )
 
 # 4. Save the processed dataset locally.
-if SAVE_PATH.exists():
+if DATA_PATH.exists():
     raise FileExistsError(
-        f"{SAVE_PATH} already exists. "
+        f"{DATA_PATH} already exists. "
         "Remove it before regenerating the dataset."
     )
 
-snli.save_to_disk(str(SAVE_PATH)) 
+snli.save_to_disk(str(DATA_PATH)) 
 
 # 5. Display a summary.
 for split, data in snli.items():
@@ -62,5 +59,5 @@ for fold in range(K):
     count = np.sum(fold_ids == fold)
     print(f"Fold {fold}: {count:,} examples")
 
-print(f"Saved to {SAVE_PATH}")
+print(f"Saved to {DATA_PATH}")
 

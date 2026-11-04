@@ -44,3 +44,5 @@ Mathematically, our representation is an $N \times 2D$ matrix (stored sparsely),
 The `Bag of Words` representation was implemented effectively identically. In the token indicator we used `Set` to remove duplicate tokens in our loop, while in the Bag of Words version we did not. 
 
 Both appear to work successfully and relatively efficiently.
+
+#TODO we should compute sparsity to justify using CSR
