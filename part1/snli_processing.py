@@ -1,5 +1,5 @@
 import numpy as np
-from datasets import DatasetDict, load_dataset
+from datasets import DatasetDict, concatenate_datasets, load_dataset
 from sklearn.model_selection import StratifiedKFold
 from snli_config import DATA_PATH, SEED, K
 
@@ -13,6 +13,25 @@ def valid(example):
         and example["premise"].strip()
         and example["hypothesis"].strip()
     )
+
+# Helper function to assign folds to data
+# Used for cross-validation in the training set
+def assign_folds(data):
+    fold_ids = np.empty(len(data), dtype=int)
+    
+    kf = StratifiedKFold(
+        n_splits=K, 
+        shuffle=True, 
+        random_state=SEED
+    ) 
+
+    # Assiging an element the id of the fold in which it is in the validation set
+    for fold, (_, val_indices) in enumerate(kf.split(data, data["label"])):
+        fold_ids[val_indices] = fold
+
+    # Reconfigure the training dataset to have these k-fold ids
+    # The test set will be used for testing, and the validation set will be unused
+    return data.add_column("cv_fold", fold_ids.tolist()), fold_ids
 
 def main() -> None:
     # Check whether the dataset already exists
@@ -32,24 +51,10 @@ def main() -> None:
     })
 
     # 3. Assign each training example to one of K folds.
-    train = snli["train"]
-    fold_ids = np.empty(len(train), dtype=int)
+    snli["train"], fold_ids = assign_folds(snli["train"])
 
-    kf = StratifiedKFold(
-        n_splits=K, 
-        shuffle=True, 
-        random_state=SEED
-    ) 
-
-    # Assiging an element the id of the fold in which it is in the validation set
-    for fold, (_, val_indices) in enumerate(kf.split(train, train["label"])):
-        fold_ids[val_indices] = fold
-
-    # Reconfigure the training dataset to have these k-fold ids
-    # The test set will be used for testing, and the validation set will be unused
-    snli["train"] = train.add_column(
-        "cv_fold", fold_ids.tolist()
-    )
+    snli["test"] = concatenate_datasets([snli["validation"], snli["test"]])
+    del snli["validation"]
 
     # 4. Save the processed dataset locally
     snli.save_to_disk(str(DATA_PATH)) 
