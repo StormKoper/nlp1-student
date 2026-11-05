@@ -1,10 +1,10 @@
 import numpy as np
 from datasets import load_from_disk
-from scipy.sparse import csr_matrix, save_npz, load_npz
+from scipy.sparse import csr_matrix, load_npz, save_npz
+from snli_config import DATA_PATH, REPRESENTATIONS_PATH, TOKENIZER_PATH
 from tokenizers import Tokenizer
 from tqdm.auto import tqdm
 
-from snli_config import DATA_PATH, TOKENIZER_PATH, REPRESENTATIONS_PATH
 
 # Token indicator representation
 def token_indicator(train_set, tokenizer):
