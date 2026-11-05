@@ -8,20 +8,21 @@ from snli_config import VOCAB_SIZE, MIN_FREQUENCY, DATA_PATH, TOKENIZER_PATH
 def main() -> None:
     snli = load_from_disk(DATA_PATH)
 
-    # Specifying the corpus 
+    # Specifying the corpus
     def corpus():
         for example in snli["train"]:
             yield example["premise"]
             yield example["hypothesis"]
 
     # We steal the BPE from the tutorial 
-    tokenizer = train_tokenizer(
+    bpe_tokenizer = train_tokenizer(
         corpus(),
         vocab_size=VOCAB_SIZE,
         min_frequency=MIN_FREQUENCY
     )
 
-    tokenizer.save(str(TOKENIZER_PATH))
+    TOKENIZER_PATH.mkdir(parents=True, exist_ok=True)
+    bpe_tokenizer.save(str(TOKENIZER_PATH / "bpe.json"))
 
 if __name__ == "__main__":
     main()

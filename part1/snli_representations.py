@@ -155,7 +155,7 @@ def main() -> None:
     # Load our saved dataset
     snli = load_from_disk(DATA_PATH)
     train_full = snli["train"] # All training data regardless of fold
-    tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH))
+    tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH / "bpe.json"))
 
     # Compute and save the representations
     X_ti, y_ti, folds_ti = token_indicator(train_full, tokenizer)
