@@ -1,63 +1,69 @@
-from pathlib import Path
 import numpy as np
 from datasets import load_dataset, DatasetDict
-import sklearn
+from sklearn.model_selection import StratifiedKFold
 
-from .snli_config import DATA_PATH, K, SEED
+from snli_config import DATA_PATH, K, SEED
 
-# 1. Download SNLI from Hugging Face
-snli = load_dataset("stanfordnlp/snli")
 
-# 2. Prune bad examples with invalid labels or empty inputs
+# Helper function to perform quality control on the data
 def valid(example):
     return (
         example["label"] in (0, 1, 2)
         and isinstance(example["premise"], str)
         and isinstance(example["hypothesis"], str)
-        and bool(example["premise"].strip())
-        and bool(example["hypothesis"].strip())
+        and example["premise"].strip()
+        and example["hypothesis"].strip()
     )
 
-snli = DatasetDict({
-    split: data.filter(valid)
-    for split, data in snli.items()
-})
+def main() -> None:
+    # Check whether the dataset already exists
+    if DATA_PATH.exists():
+        raise FileExistsError(
+            f"{DATA_PATH} already exists. "
+            "Remove it before regenerating the dataset."
+        )
 
-# 3. Assign each training example to one of K folds.
-train = snli["train"]
-fold_ids = np.empty(len(train), dtype=int)
+    # 1. Download SNLI from Hugging Face
+    snli = load_dataset("stanfordnlp/snli")
 
-kf = sklearn.model_selection.StratifiedKFold(
-    n_splits=K, 
-    shuffle=True, 
-    random_state=SEED
-) 
+    # 2. Prune bad examples with invalid labels or empty inputs
+    snli = DatasetDict({
+        split: data.filter(valid)
+        for split, data in snli.items()
+    })
 
-# We chose the representation of assiging an element the id of the fold in which it is in the validation set. 
-for fold, (_, val_indices) in enumerate(kf.split(train, train["label"])):
-    fold_ids[val_indices] = fold
+    # 3. Assign each training example to one of K folds.
+    train = snli["train"]
+    fold_ids = np.empty(len(train), dtype=int)
 
-# We only reconfigure the training dataset to have these k-fold ids. Test will be used for testing, and the designated validation set will be unused. 
-snli["train"] = train.add_column(
-    "cv_fold", fold_ids.tolist()
-)
+    kf = StratifiedKFold(
+        n_splits=K, 
+        shuffle=True, 
+        random_state=SEED
+    ) 
 
-# 4. Save the processed dataset locally.
-if DATA_PATH.exists():
-    raise FileExistsError(
-        f"{DATA_PATH} already exists. "
-        "Remove it before regenerating the dataset."
+    # Assiging an element the id of the fold in which it is in the validation set
+    for fold, (_, val_indices) in enumerate(kf.split(train, train["label"])):
+        fold_ids[val_indices] = fold
+
+    # Reconfigure the training dataset to have these k-fold ids
+    # The test set will be used for testing, and the validation set will be unused
+    snli["train"] = train.add_column(
+        "cv_fold", fold_ids.tolist()
     )
 
-snli.save_to_disk(str(DATA_PATH)) 
+    # 4. Save the processed dataset locally
+    snli.save_to_disk(str(DATA_PATH)) 
 
-# 5. Display a summary.
-for split, data in snli.items():
-    print(f"{split}: {len(data):,} examples")
+    # 5. Print a summary
+    for split, data in snli.items():
+        print(f"{split}: {len(data):,} examples")
 
-for fold in range(K):
-    count = np.sum(fold_ids == fold)
-    print(f"Fold {fold}: {count:,} examples")
+    for fold in range(K):
+        count = np.sum(fold_ids == fold)
+        print(f"Fold {fold}: {count:,} examples")
 
-print(f"Saved to {DATA_PATH}")
+    print(f"Saved to {DATA_PATH}")
 
+if __name__ == "__main__":
+    main()

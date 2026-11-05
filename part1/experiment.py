@@ -7,16 +7,13 @@ from tokenizers.pre_tokenizers import Metaspace
 from sklearn.metrics import accuracy_score
 from pathlib import Path
 from datasets import load_dataset
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 from tqdm.auto import tqdm
 import random
 
-from . import loglin
-from . import smlp
-from . import clslib
-
-
-
+import loglin
+import smlp
+import clslib
 
 
 def download_ag_news_texts():
