@@ -50,24 +50,36 @@ def main() -> None:
         for split, data in snli.items()
     })
 
-    # 3. Assign each training example to one of K folds.
+    # 3. Assign each training example to one of K folds
     snli["train"], fold_ids = assign_folds(snli["train"])
 
+    # 4. Merge the validation set into the test set
     snli["test"] = concatenate_datasets([snli["validation"], snli["test"]])
     del snli["validation"]
 
-    # 4. Save the processed dataset locally
+    # 5. Save the processed dataset locally
     snli.save_to_disk(str(DATA_PATH)) 
 
-    # 5. Print a summary
+    # 6. Print a summary
     for split, data in snli.items():
-        print(f"{split}: {len(data):,} examples")
+        labels = np.array(data["label"])
+        count = len(data)
+        print(f"\nThe {split} split has {len(data):,} examples with labels:")
+        for label in np.unique(labels):
+            label_count = np.sum(labels == label)
+            print(f"\tLabel {label}: {label_count} ({100*label_count/count:.2f}%) examples")
 
+    train_labels = np.array(snli["train"]["label"])
     for fold in range(K):
-        count = np.sum(fold_ids == fold)
-        print(f"Fold {fold}: {count:,} examples")
+        mask = fold_ids == fold
+        labels = train_labels[mask]
+        count = mask.sum()
+        print(f"\nTraining fold {fold} has {count:,} examples with labels:")
+        for label in np.unique(labels):
+            label_count = np.sum(labels == label)
+            print(f"\tLabel {label}: {label_count} ({100*label_count/count:.2f}%) examples")
 
-    print(f"Saved to {DATA_PATH}")
+    print(f"\nSaved dataset to {DATA_PATH}")
 
 if __name__ == "__main__":
     main()
