@@ -1,20 +1,13 @@
-from pathlib import Path
-
 import numpy as np
 from datasets import load_from_disk
 from scipy.sparse import csr_matrix, save_npz
 from tokenizers import Tokenizer
 from tqdm.auto import tqdm
 
-from .snli_config import DATA_PATH, TOKENIZER_PATH, REPRESENTATIONS_PATH
+from snli_config import DATA_PATH, TOKENIZER_PATH, REPRESENTATIONS_PATH
 
-# Load our cached dataset
-snli = load_from_disk(str(DATA_PATH))
-train_full = snli["train"] # All training data regardless of fold
-tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH))
-
-# ----- TOKEN INDICATOR FIRST ---------------------------------------------------------------------
-def compute_token_indicator(train_set):
+# Token indicator representation
+def compute_token_indicator(train_set, tokenizer):
     """
     Encode all SNLI premise-hypothesis pairs into a sparse feature matrix
     with token indicator encoding.
@@ -62,8 +55,8 @@ def compute_token_indicator(train_set):
 
     return X, y, folds
 
-# ----- TOKEN BAG OF WORDS ------------------------------------------------------------------------
-def compute_token_bag_of_words(train_set):
+# Token bag of words representation
+def compute_token_bag_of_words(train_set, tokenizer):
     """
     Encode all SNLI premise-hypothesis pairs into a sparse feature matrix
     with token BoW encoding.
@@ -110,9 +103,8 @@ def compute_token_bag_of_words(train_set):
 
     return X, y, folds
 
-# ----- Chaching the Representation ---------------------------------------------------------------
-
-def cache_representation(X, y, folds, path_name):
+# Helper function to save the representation for modelling
+def save_representation(X, y, folds, path_name):
     """
     Save a computed representation and its associated labels and folds.
 
@@ -127,7 +119,7 @@ def cache_representation(X, y, folds, path_name):
     """
     LOCAL_PATH = REPRESENTATIONS_PATH / path_name
 
-    # Cache it
+    # Save it
     LOCAL_PATH.mkdir(parents=True, exist_ok=True)
     save_npz(LOCAL_PATH / "X.npz", X)
     np.save(LOCAL_PATH / "y.npy", y)
@@ -138,22 +130,18 @@ def cache_representation(X, y, folds, path_name):
     for fold in sorted(np.unique(folds)):
         print(f"Fold {fold}: {(folds != fold).sum():,} training examples")
 
-# ----- COMPUTATION -------------------------------------------------------------------------------
+def main() -> None:
+    # Load our saved dataset
+    snli = load_from_disk(DATA_PATH)
+    train_full = snli["train"] # All training data regardless of fold
+    tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH))
 
-# -- Token Indicator --
+    # Compute and save the representations
+    X, y, folds = compute_token_indicator(train_full, tokenizer)
+    save_representation(X, y, folds, "token_indicator")
 
-X, y, folds = compute_token_indicator(
-    train_set=train_full
-)
+    X, y, folds = compute_token_bag_of_words(train_full, tokenizer)
+    save_representation(X, y, folds, "token_bag_of_words")
 
-cache_representation(X, y, folds, "token_indicator")
-
-X, y, folds = compute_token_bag_of_words(
-    train_set=train_full
-)
-
-
-
-cache_representation(X, y, folds, "token_bag_of_words")
-
-# -- Token Bag Of Words --
+if __name__ == "__main__":
+    main()
