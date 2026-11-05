@@ -1,8 +1,7 @@
 ## This file handles the BPE as per the tutorial
 from datasets import load_from_disk
-
 from experiment import train_tokenizer
-from snli_config import VOCAB_SIZE, MIN_FREQUENCY, DATA_PATH, TOKENIZER_PATH
+from snli_config import DATA_PATH, MIN_FREQUENCY, TOKENIZER_PATH, VOCAB_SIZE
 
 
 def main() -> None:

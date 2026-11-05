@@ -1,8 +1,7 @@
 import numpy as np
-from datasets import load_dataset, DatasetDict
+from datasets import DatasetDict, load_dataset
 from sklearn.model_selection import StratifiedKFold
-
-from snli_config import DATA_PATH, K, SEED
+from snli_config import DATA_PATH, SEED, K
 
 
 # Helper function to perform quality control on the data
