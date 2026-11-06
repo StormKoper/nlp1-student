@@ -141,16 +141,16 @@ def main() -> None:
     snli_logistic_model_bag_of_tokens_tfidf = logistic_regression("snli_tfidf_bag_of_tokens", tfidf = True)
     save_architecture(snli_logistic_model_bag_of_tokens_tfidf, 'snli_tfidf_logistic_regression_bag_of_tokens')
 
-    snli_mlp1_token_indicator = logistic_regression("snli_token_indicator")
+    snli_mlp1_token_indicator = single_layer_mlp("snli_token_indicator")
     save_architecture(snli_mlp1_token_indicator, 'snli_mlp1_token_indicator')
 
-    snli_mlp1_bag_of_tokens = logistic_regression("snli_bag_of_tokens")
+    snli_mlp1_bag_of_tokens = single_layer_mlp("snli_bag_of_tokens")
     save_architecture(snli_mlp1_bag_of_tokens, 'snli_mlp1_bag_of_tokens')
 
-    snli_mlp1_token_indicator_tfidf = logistic_regression("snli_tfidf_token_indicator", tfidf = True)
+    snli_mlp1_token_indicator_tfidf = single_layer_mlp("snli_tfidf_token_indicator", tfidf = True)
     save_architecture(snli_mlp1_token_indicator_tfidf, 'snli_tfidf_mlp1_token_indicator')
 
-    snli_mlp1_bag_of_tokens_tfidf = logistic_regression("snli_tfidf_bag_of_tokens", tfidf = True)
+    snli_mlp1_bag_of_tokens_tfidf = single_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
     save_architecture(snli_mlp1_bag_of_tokens_tfidf, 'snli_tfidf_mlp1_bag_of_tokens')
 
 if __name__ == '__main__':
