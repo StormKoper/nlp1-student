@@ -1,6 +1,6 @@
 import numpy as np
 from datasets import load_from_disk
-from scipy.sparse import csr_matrix, load_npz, save_npz
+from scipy.sparse import csr_matrix, load_npz, save_npz, vstack
 from snli_config import DATA_PATH, REPRESENTATIONS_PATH, TOKENIZER_PATH
 from tokenizers import Tokenizer
 from tqdm.auto import tqdm
@@ -103,17 +103,22 @@ def bag_of_tokens(train_set, tokenizer):
 
     return X, y, folds
 
-# Term frequency inverse document frequency
-def convert_to_tfidf(tf: csr_matrix) -> csr_matrix:
+# Convert token indicator or bag of tokens to term frequency inverse document frequency
+def convert_to_tfidf(X, folds):
     """
     Convert count (indicator or bag of words) term frequency to
     term frequency inverse document frequency.
     The documents are the premise-hypothesis pairs in the dataset.
     Uses smoothed TF-IDF computation (+1 document and document frequency).
     """
-    df = tf.getnnz(axis=0)
-    idf = np.log((tf.shape[0] + 1) / (df + 1)) + 1
-    return tf.multiply(idf)
+    tfidf_folds = []
+    for fold in np.unique(folds):
+        train = X[folds != fold]
+        df = train.getnnz(axis=0)
+        idf = np.log((train.shape[0] + 1) / (df + 1)) + 1
+        tfidf = X.multiply(idf)
+        tfidf_folds.append(tfidf)
+    return tfidf_folds
 
 # Helper function to save the representation for modelling
 def save_representation(X, y, folds, path_name):
@@ -133,11 +138,19 @@ def save_representation(X, y, folds, path_name):
 
     # Save it
     LOCAL_PATH.mkdir(parents=True, exist_ok=True)
-    save_npz(LOCAL_PATH / "X.npz", X)
+    if isinstance(X, csr_matrix):
+        save_npz(LOCAL_PATH / "X.npz", X)
+    elif isinstance(X, list):
+        for fold in np.unique(folds):
+            save_npz(LOCAL_PATH / f"X_fold_{fold}.npz", X[fold])
+    else:
+        raise TypeError("X must be a csr_matrix or list of csr_matrices")
     np.save(LOCAL_PATH / "y.npy", y)
     np.save(LOCAL_PATH / "folds.npy", folds)
 
     # Logging Output
+    if isinstance(X, list):
+        X = X[0]
     print(f"Saved {X.shape[0]:,} examples, {X.shape[1]:,} features to {REPRESENTATIONS_PATH}")
     for fold in sorted(np.unique(folds)):
         print(f"Fold {fold}: {(folds != fold).sum():,} training examples")
@@ -164,11 +177,11 @@ def main() -> None:
     X_bot, y_bot, folds_bot = bag_of_tokens(train_full, tokenizer)
     save_representation(X_bot, y_bot, folds_bot, "bag_of_tokens")
 
-    tfidf_ti = convert_to_tfidf(X_ti)
-    save_representation(tfidf_ti, y_ti, folds_ti, "tfidf_token_indicator")
+    tfidf_folds_ti = convert_to_tfidf(X_ti, folds_ti)
+    save_representation(tfidf_folds_ti, y_ti, folds_ti, "tfidf_token_indicator")
 
-    tfidf_bot = convert_to_tfidf(X_bot)
-    save_representation(tfidf_bot, y_bot, folds_bot, "tfidf_bag_of_tokens")
+    tfidf_folds_bot = convert_to_tfidf(X_bot, folds_bot)
+    save_representation(tfidf_folds_bot, y_bot, folds_bot, "tfidf_bag_of_tokens")
 
 
 if __name__ == "__main__":
