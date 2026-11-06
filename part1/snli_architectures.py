@@ -127,7 +127,7 @@ def n_layer_mlp(
         X_train_sparse = fold_X[train_mask]
         training_labels = y[train_mask]
 
-        # Reusing the tutorial's sparse dataset and batching helpers
+        # Reusing the tutorial"s sparse dataset and batching helpers
         train_dataset = smlp.SparseDataset(
             X_train_sparse, training_labels
         )
@@ -170,8 +170,8 @@ def n_layer_mlp(
             print(
                 f"Fold {k + 1}/{K} | "
                 f"Epoch {epoch + 1}/{num_epochs} | "
-                f"Train loss: {metrics['loss']:.4f} | "
-                f"Train accuracy: {metrics['accuracy']:.4f}"
+                f"Train loss: {metrics["loss"]:.4f} | "
+                f"Train accuracy: {metrics["accuracy"]:.4f}"
             )
 
         # Disable dropout for later prediction; no data is evaluated here.
@@ -208,7 +208,7 @@ def n_layer_mlp(
 def save_architecture(model, model_name) -> None:
     if not os.path.exists(ARCHITECTURES_PATH):
         os.mkdir(ARCHITECTURES_PATH)
-    with open(f"{ARCHITECTURES_PATH/model_name}.pickle", 'wb') as file:
+    with open(f"{ARCHITECTURES_PATH/model_name}.pickle", "wb") as file:
         pickle.dump(model, file, protocol=pickle.HIGHEST_PROTOCOL)
 
 def save_predictions(preds, representation_name) -> None:
@@ -220,50 +220,34 @@ def save_predictions(preds, representation_name) -> None:
 def main() -> None:
     print("Logistic regression")
     snli_logistic_model_token_indicator, preds = logistic_regression("snli_token_indicator")
-    save_architecture(snli_logistic_model_token_indicator, 'snli_logistic_regression_token_indicator')
+    save_architecture(snli_logistic_model_token_indicator, "snli_logistic_regression_token_indicator")
     save_predictions(preds, "snli_logistic_regression_token_indicator")
 
-    snli_logistic_model_bag_of_tokens, preds = logistic_regression("snli_bag_of_tokens")
-    save_architecture(snli_logistic_model_bag_of_tokens, 'snli_logistic_regression_bag_of_tokens')
-    save_predictions(preds, "snli_logistic_regression_bag_of_tokens")
-
-    snli_logistic_model_token_indicator_tfidf, preds = logistic_regression("snli_tfidf_token_indicator", tfidf = True)
-    save_architecture(snli_logistic_model_token_indicator_tfidf, 'snli_tfidf_logistic_regression_token_indicator')
-    save_predictions(preds, "snli_tfidf_logistic_regression_token_indicator")
-
     snli_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression("snli_tfidf_bag_of_tokens", tfidf = True)
-    save_architecture(snli_logistic_model_bag_of_tokens_tfidf, 'snli_tfidf_logistic_regression_bag_of_tokens')
+    save_architecture(snli_logistic_model_bag_of_tokens_tfidf, "snli_tfidf_logistic_regression_bag_of_tokens")
     save_predictions(preds, "snli_tfidf_logistic_regression_bag_of_tokens")
 
-    print("Single layer MLP")
-    snli_mlp1_token_indicator, preds = n_layer_mlp("snli_token_indicator")
-    save_architecture(snli_mlp1_token_indicator, 'snli_mlp1_token_indicator')
-    save_predictions(preds, "snli_mlp1_token_indicator")
+    mistral_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression("mistral_tfidf_bag_of_tokens", tfidf = True)
+    save_architecture(mistral_logistic_model_bag_of_tokens_tfidf, "mistral_tfidf_logistic_regression_bag_of_tokens")
+    save_predictions(preds, "mistral_tfidf_logistic_regression_bag_of_tokens")
+    
+    # print("Single layer MLP")
+    # snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
+    # save_architecture(snli_mlp1_bag_of_tokens_tfidf, "snli_tfidf_mlp1_bag_of_tokens")
+    # save_predictions(preds, "snli_tfidf_mlp1_bag_of_tokens")
 
-    snli_mlp1_bag_of_tokens, preds = n_layer_mlp("snli_bag_of_tokens")
-    save_architecture(snli_mlp1_bag_of_tokens, 'snli_mlp1_bag_of_tokens')
-    save_predictions(preds, "snli_mlp1_bag_of_tokens")
+    # snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("mistral_tfidf_bag_of_tokens", tfidf = True)
+    # save_architecture(snli_mlp1_bag_of_tokens_tfidf, "mistral_tfidf_mlp1_bag_of_tokens")
+    # save_predictions(preds, "mistral_tfidf_mlp1_bag_of_tokens")
 
-    snli_mlp1_token_indicator_tfidf, preds = n_layer_mlp("snli_tfidf_token_indicator", tfidf = True)
-    save_architecture(snli_mlp1_token_indicator_tfidf, 'snli_tfidf_mlp1_token_indicator')
-    save_predictions(preds, "snli_tfidf_mlp1_token_indicator")
+    print("Double layer MLP")
+    snli_mlp2_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True, layers=2)
+    save_architecture(snli_mlp2_bag_of_tokens_tfidf, "snli_tfidf_mlp2_bag_of_tokens")
+    save_predictions(preds, "snli_tfidf_mlp2_bag_of_tokens")
 
-    snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
-    save_architecture(snli_mlp1_bag_of_tokens_tfidf, 'snli_tfidf_mlp1_bag_of_tokens')
-    save_predictions(preds, "snli_tfidf_mlp1_bag_of_tokens")
+    mistral_mlp2_bag_of_tokens_tfidf, preds = n_layer_mlp("mistral_tfidf_bag_of_tokens", tfidf = True, layers=2)
+    save_architecture(mistral_mlp2_bag_of_tokens_tfidf, "mistral_tfidf_mlp2_bag_of_tokens")
+    save_predictions(preds, "mistral_tfidf_mlp2_bag_of_tokens")
 
-    # 2-layer
-    snli_mlp1_token_indicator = n_layer_mlp("snli_token_indicator", layers=2)
-    save_architecture(snli_mlp1_token_indicator, 'snli_mlp2_token_indicator')
-
-    snli_mlp1_bag_of_tokens = n_layer_mlp("snli_bag_of_tokens", layers=2)
-    save_architecture(snli_mlp1_bag_of_tokens, 'snli_mlp2_bag_of_tokens')
-
-    snli_mlp1_token_indicator_tfidf = n_layer_mlp("snli_tfidf_token_indicator", tfidf = True, layers=2)
-    save_architecture(snli_mlp1_token_indicator_tfidf, 'snli_tfidf_mlp2_token_indicator')
-
-    snli_mlp1_bag_of_tokens_tfidf = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True, layers=2)
-    save_architecture(snli_mlp1_bag_of_tokens_tfidf, 'snli_tfidf_mlp2_bag_of_tokens')
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
