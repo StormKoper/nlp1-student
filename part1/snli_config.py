@@ -5,6 +5,7 @@ DATA_PATH: Path = ROOT / "data" / "snli"
 TOKENIZER_PATH: Path = ROOT / "data" / "tokenizers"
 REPRESENTATIONS_PATH: Path = ROOT / "data" / "representations"
 ARCHITECTURES_PATH: Path = ROOT / "data" / "architectures"
+PREDICTIONS_PATH: Path = ROOT / "data" / "predictions"
 
 # Folding and Seed
 K: int = 5

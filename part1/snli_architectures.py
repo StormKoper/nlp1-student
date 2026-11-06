@@ -1,17 +1,15 @@
-import pickle
-from datasets import load_from_disk
-from tokenizers import Tokenizer
-from tqdm.auto import tqdm
-from sklearn.linear_model import LogisticRegression
-from snli_config import DATA_PATH, TOKENIZER_PATH, ARCHITECTURES_PATH
-from snli_representations import token_indicator, load_representation, load_tfidf_representation
-from snli_config import K
-from collections import OrderedDict
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-import smlp
 import os
+import pickle
+from collections import OrderedDict
+
+import numpy as np
+import smlp
+import torch
+from sklearn.linear_model import LogisticRegression
+from snli_config import ARCHITECTURES_PATH, PREDICTIONS_PATH, K
+from snli_representations import load_representation, load_tfidf_representation
+from torch import nn
+from torch.utils.data import DataLoader
 
 
 class n_layer_SparseMLP(nn.Module):
@@ -70,34 +68,34 @@ class n_layer_SparseMLP(nn.Module):
 
 
 # Works with all representations. 
-def logistic_regression(representation_name, tfidf=False, max_iter = 5, n_jobs = -1):
+def logistic_regression(representation_name, tfidf=False, max_iter = 5):
     
     models = OrderedDict()
 
     if tfidf:
         X, y, folds = load_tfidf_representation(representation_name)
-
-        for k in range(K):
-            train_mask = folds != k
-            X_train_sparse = X[k][train_mask]
-            training_labels = y[train_mask]
-
-            logistic_model = LogisticRegression(solver="saga", max_iter=max_iter, n_jobs=n_jobs) #sparse matrix frinedly solver 
-            logistic_model.fit(X_train_sparse, training_labels)
-            models[k] = logistic_model
     else:
         X, y, folds = load_representation(representation_name)
+    preds = np.zeros_like(y)
 
-        for k in range(K):
-            train_mask = folds != k
-            X_train_sparse = X[train_mask]
-            training_labels = y[train_mask]
+    for k in range(K):
+        train_mask = folds != k
+        fold_X = X[k] if tfidf else X
+        X_train_sparse = fold_X[train_mask]
+        training_labels = y[train_mask]
 
-            logistic_model = LogisticRegression(solver="saga", max_iter=max_iter, n_jobs=n_jobs) #sparse matrix frinedly solver 
-            logistic_model.fit(X_train_sparse, training_labels)
-            models[k] = logistic_model
+        logistic_model = LogisticRegression(solver="saga", max_iter=max_iter) #sparse matrix frinedly solver 
+        logistic_model.fit(X_train_sparse, training_labels)
+        pred = logistic_model.predict(fold_X[~train_mask])
+        models[k] = logistic_model
+        preds[~train_mask] = pred
+        fold_acc = np.mean(preds[~train_mask] == y[~train_mask])
+        print(f"Fold {k}: accuracy {fold_acc:.4f} ({representation_name})")
 
-    return models
+    acc = np.mean(preds == y)
+    print(f"Logistic regression accuracy {acc:.4f} ({representation_name})")
+
+    return models, preds
 
 def n_layer_mlp(
     representation_name,
@@ -119,6 +117,7 @@ def n_layer_mlp(
         X, y, folds = load_tfidf_representation(representation_name)
     else:
         X, y, folds = load_representation(representation_name)
+    preds = np.zeros_like(y)
 
     for k in range(K):
         
@@ -177,7 +176,34 @@ def n_layer_mlp(
 
         # Disable dropout for later prediction; no data is evaluated here.
         model.eval()
+
+        test_dataset = smlp.SparseDataset(
+            fold_X[~train_mask], y[~train_mask]
+        )
+
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            collate_fn=smlp.sparse_collate,
+        )
+
+        prediction_batches = []
+        with torch.no_grad():
+            for X_batch, _ in test_loader:
+                log_probs = model(X_batch.to(device))
+                predictions = log_probs.argmax(dim=1)
+                prediction_batches.append(predictions.cpu().numpy())
+        predictions = np.concatenate(prediction_batches)
+        preds[~train_mask] = predictions
         models[k] = model
+        fold_acc = np.mean(preds[~train_mask] == y[~train_mask])
+        print(f"1-layer MLP fold {k}: accuracy {fold_acc:.4f} ({representation_name})")
+
+    acc = np.mean(preds == y)
+    print(f"1-layer MLP accuracy {acc:.4f} ({representation_name})")
+
+    return models, preds
 
 def save_architecture(model, model_name) -> None:
     if not os.path.exists(ARCHITECTURES_PATH):
@@ -185,32 +211,46 @@ def save_architecture(model, model_name) -> None:
     with open(f"{ARCHITECTURES_PATH/model_name}.pickle", 'wb') as file:
         pickle.dump(model, file, protocol=pickle.HIGHEST_PROTOCOL)
 
+def save_predictions(preds, representation_name) -> None:
+    if not os.path.exists(PREDICTIONS_PATH):
+        os.mkdir(PREDICTIONS_PATH)
+    np.save(PREDICTIONS_PATH / (representation_name + ".npy"), preds)
+
 
 def main() -> None:
-
-    snli_logistic_model_token_indicator = logistic_regression("snli_token_indicator")
+    print("Logistic regression")
+    snli_logistic_model_token_indicator, preds = logistic_regression("snli_token_indicator")
     save_architecture(snli_logistic_model_token_indicator, 'snli_logistic_regression_token_indicator')
+    save_predictions(preds, "snli_logistic_regression_token_indicator")
 
-    snli_logistic_model_bag_of_tokens = logistic_regression("snli_bag_of_tokens")
+    snli_logistic_model_bag_of_tokens, preds = logistic_regression("snli_bag_of_tokens")
     save_architecture(snli_logistic_model_bag_of_tokens, 'snli_logistic_regression_bag_of_tokens')
+    save_predictions(preds, "snli_logistic_regression_bag_of_tokens")
 
-    snli_logistic_model_token_indicator_tfidf = logistic_regression("snli_tfidf_token_indicator", tfidf = True)
+    snli_logistic_model_token_indicator_tfidf, preds = logistic_regression("snli_tfidf_token_indicator", tfidf = True)
     save_architecture(snli_logistic_model_token_indicator_tfidf, 'snli_tfidf_logistic_regression_token_indicator')
+    save_predictions(preds, "snli_tfidf_logistic_regression_token_indicator")
 
-    snli_logistic_model_bag_of_tokens_tfidf = logistic_regression("snli_tfidf_bag_of_tokens", tfidf = True)
+    snli_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression("snli_tfidf_bag_of_tokens", tfidf = True)
     save_architecture(snli_logistic_model_bag_of_tokens_tfidf, 'snli_tfidf_logistic_regression_bag_of_tokens')
+    save_predictions(preds, "snli_tfidf_logistic_regression_bag_of_tokens")
 
-    snli_mlp1_token_indicator = n_layer_mlp("snli_token_indicator")
+    print("Single layer MLP")
+    snli_mlp1_token_indicator, preds = n_layer_mlp("snli_token_indicator")
     save_architecture(snli_mlp1_token_indicator, 'snli_mlp1_token_indicator')
+    save_predictions(preds, "snli_mlp1_token_indicator")
 
-    snli_mlp1_bag_of_tokens = n_layer_mlp("snli_bag_of_tokens")
+    snli_mlp1_bag_of_tokens, preds = n_layer_mlp("snli_bag_of_tokens")
     save_architecture(snli_mlp1_bag_of_tokens, 'snli_mlp1_bag_of_tokens')
+    save_predictions(preds, "snli_mlp1_bag_of_tokens")
 
-    snli_mlp1_token_indicator_tfidf = n_layer_mlp("snli_tfidf_token_indicator", tfidf = True)
+    snli_mlp1_token_indicator_tfidf, preds = n_layer_mlp("snli_tfidf_token_indicator", tfidf = True)
     save_architecture(snli_mlp1_token_indicator_tfidf, 'snli_tfidf_mlp1_token_indicator')
+    save_predictions(preds, "snli_tfidf_mlp1_token_indicator")
 
-    snli_mlp1_bag_of_tokens_tfidf = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
+    snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
     save_architecture(snli_mlp1_bag_of_tokens_tfidf, 'snli_tfidf_mlp1_bag_of_tokens')
+    save_predictions(preds, "snli_tfidf_mlp1_bag_of_tokens")
 
     # 2-layer
     snli_mlp1_token_indicator = n_layer_mlp("snli_token_indicator", layers=2)
