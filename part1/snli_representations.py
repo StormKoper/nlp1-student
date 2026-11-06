@@ -1,7 +1,7 @@
 import numpy as np
 from datasets import load_from_disk
-from scipy.sparse import csr_matrix, load_npz, save_npz, vstack
-from snli_config import DATA_PATH, REPRESENTATIONS_PATH, TOKENIZER_PATH, K
+from scipy.sparse import csr_matrix, load_npz, save_npz
+from snli_config import DATA_PATH, REPRESENTATIONS_PATH, TOKENIZERS, TOKENIZER_PATH
 from tokenizers import Tokenizer
 from tqdm.auto import tqdm
 
@@ -29,7 +29,7 @@ def token_indicator(train_set, tokenizer):
     rows = []
     cols = []
 
-    for i, example in enumerate(tqdm(train_set, desc="Encoding SNLI - Indicator")):
+    for i, example in enumerate(tqdm(train_set, desc="Encoding SNLI - token indicator")):
         # Remove duplicate token IDs so each token is counted only once, using set. This makes it binary and not bag of words. 
         premise_ids = set(tokenizer.encode(example["premise"]).ids)
         hypothesis_ids = set(tokenizer.encode(example["hypothesis"]).ids)
@@ -78,7 +78,7 @@ def bag_of_tokens(train_set, tokenizer):
     rows = []
     cols = []
 
-    for i, example in enumerate(tqdm(train_set, desc="Encoding SNLI  - Bag of Words")):
+    for i, example in enumerate(tqdm(train_set, desc="Encoding SNLI - bag of tokens")):
         premise_ids = tokenizer.encode(example["premise"]).ids
         hypothesis_ids = tokenizer.encode(example["hypothesis"]).ids
 
@@ -149,11 +149,8 @@ def save_representation(X, y, folds, path_name):
     np.save(LOCAL_PATH / "folds.npy", folds)
 
     # Logging Output
-    if isinstance(X, list):
-        X = X[0]
-    print(f"Saved {X.shape[0]:,} examples, {X.shape[1]:,} features to {REPRESENTATIONS_PATH}")
-    for fold in sorted(np.unique(folds)):
-        print(f"Fold {fold}: {(folds != fold).sum():,} training examples")
+    features = X.shape[1] if isinstance(X, csr_matrix) else X[0].shape[1]
+    print(f"Saved representation to {LOCAL_PATH}: {features:,} features")
 
 # Helper function to load the representation for faster testing
 def load_representation(path_name):
@@ -178,20 +175,22 @@ def main() -> None:
     # Load our saved dataset
     snli = load_from_disk(DATA_PATH)
     train_full = snli["train"] # All training data regardless of fold
-    tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH / "bpe.json"))
+    for tokenizer_name in TOKENIZERS:
+        print(f"--- Using tokenizer {tokenizer_name} ---\n")
+        tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH / f"{tokenizer_name}_bpe.json"))
 
-    # Compute and save the representations
-    X_ti, y_ti, folds_ti = token_indicator(train_full, tokenizer)
-    save_representation(X_ti, y_ti, folds_ti, "token_indicator")
+        # Compute and save the representations
+        X_ti, y_ti, folds_ti = token_indicator(train_full, tokenizer)
+        save_representation(X_ti, y_ti, folds_ti, f"{tokenizer_name}_token_indicator")
 
-    X_bot, y_bot, folds_bot = bag_of_tokens(train_full, tokenizer)
-    save_representation(X_bot, y_bot, folds_bot, "bag_of_tokens")
+        X_bot, y_bot, folds_bot = bag_of_tokens(train_full, tokenizer)
+        save_representation(X_bot, y_bot, folds_bot, f"{tokenizer_name}_bag_of_tokens")
 
-    tfidf_folds_ti = convert_to_tfidf(X_ti, folds_ti)
-    save_representation(tfidf_folds_ti, y_ti, folds_ti, "tfidf_token_indicator")
+        tfidf_folds_ti = convert_to_tfidf(X_ti, folds_ti)
+        save_representation(tfidf_folds_ti, y_ti, folds_ti, f"{tokenizer_name}_tfidf_token_indicator")
 
-    tfidf_folds_bot = convert_to_tfidf(X_bot, folds_bot)
-    save_representation(tfidf_folds_bot, y_bot, folds_bot, "tfidf_bag_of_tokens")
+        tfidf_folds_bot = convert_to_tfidf(X_bot, folds_bot)
+        save_representation(tfidf_folds_bot, y_bot, folds_bot, f"{tokenizer_name}_tfidf_bag_of_tokens")
 
 
 if __name__ == "__main__":
