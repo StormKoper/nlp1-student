@@ -68,7 +68,7 @@ class n_layer_SparseMLP(nn.Module):
 
 
 # Works with all representations. 
-def logistic_regression(representation_name, tfidf=False, max_iter = 5):
+def logistic_regression(representation_name, tfidf=False, max_iter = 500):
     
     models = OrderedDict()
 
@@ -198,10 +198,10 @@ def n_layer_mlp(
         preds[~train_mask] = predictions
         models[k] = model
         fold_acc = np.mean(preds[~train_mask] == y[~train_mask])
-        print(f"1-layer MLP fold {k}: accuracy {fold_acc:.4f} ({representation_name})")
+        print(f"{layers}-layer MLP fold {k}: accuracy {fold_acc:.4f} ({representation_name})")
 
     acc = np.mean(preds == y)
-    print(f"1-layer MLP accuracy {acc:.4f} ({representation_name})")
+    print(f"{layers}-layer MLP accuracy {acc:.4f} ({representation_name})")
 
     return models, preds
 
