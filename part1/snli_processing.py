@@ -61,13 +61,15 @@ def main() -> None:
     snli.save_to_disk(str(DATA_PATH)) 
 
     # 6. Print a summary
+    label_meanings = ["entailment", "neutral", "contradiction"]
+
     for split, data in snli.items():
         labels = np.array(data["label"])
         count = len(data)
-        print(f"\nThe {split} split has {len(data):,} examples with labels:")
+        print(f"\nThe {split} split has {count:,} examples with labels:")
         for label in np.unique(labels):
             label_count = np.sum(labels == label)
-            print(f"\tLabel {label}: {label_count} ({100*label_count/count:.2f}%) examples")
+            print(f"\tLabel {label} ({label_meanings[label]}): {label_count:,} ({100*label_count/count:.2f}%) examples")
 
     train_labels = np.array(snli["train"]["label"])
     for fold in range(K):
@@ -77,7 +79,7 @@ def main() -> None:
         print(f"\nTraining fold {fold} has {count:,} examples with labels:")
         for label in np.unique(labels):
             label_count = np.sum(labels == label)
-            print(f"\tLabel {label}: {label_count} ({100*label_count/count:.2f}%) examples")
+            print(f"\tLabel {label} ({label_meanings[label]}): {label_count:,} ({100*label_count/count:.2f}%) examples")
 
     print(f"\nSaved dataset to {DATA_PATH}")
 
