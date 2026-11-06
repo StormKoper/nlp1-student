@@ -5,6 +5,7 @@ import snli_processing
 import snli_representations
 import snli_tokenizer
 import snli_architectures
+import snli_evaluations
 
 
 def clear_data_dir(path: Path) -> None:
@@ -18,6 +19,7 @@ def main() -> None:
     snli_tokenizer.main()
     snli_representations.main()
     snli_architectures.main()
+    snli_evaluations.main()
 
 
 if __name__ == "__main__":
