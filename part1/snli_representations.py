@@ -1,7 +1,7 @@
 import numpy as np
 from datasets import load_from_disk
 from scipy.sparse import csr_matrix, load_npz, save_npz, vstack
-from snli_config import DATA_PATH, REPRESENTATIONS_PATH, TOKENIZER_PATH
+from snli_config import DATA_PATH, REPRESENTATIONS_PATH, TOKENIZER_PATH, K
 from tokenizers import Tokenizer
 from tqdm.auto import tqdm
 
@@ -116,7 +116,7 @@ def convert_to_tfidf(X, folds):
         train = X[folds != fold]
         df = train.getnnz(axis=0)
         idf = np.log((train.shape[0] + 1) / (df + 1)) + 1
-        tfidf = X.multiply(idf)
+        tfidf = X.multiply(idf).tocsr()
         tfidf_folds.append(tfidf)
     return tfidf_folds
 
@@ -161,6 +161,16 @@ def load_representation(path_name):
     X = load_npz(LOCAL_PATH / "X.npz")
     y = np.load(LOCAL_PATH / "y.npy")
     folds = np.load(LOCAL_PATH / "folds.npy")
+    return X, y, folds
+
+def load_tfidf_representation(path_name): 
+    LOCAL_PATH = REPRESENTATIONS_PATH / path_name
+    folds = np.load(LOCAL_PATH / "folds.npy")
+    X = {
+        fold: load_npz(LOCAL_PATH / f"X_fold_{fold}.npz")
+        for fold in sorted(np.unique(folds))
+    }
+    y = np.load(LOCAL_PATH / "y.npy")
     return X, y, folds
 
 
