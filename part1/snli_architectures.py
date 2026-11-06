@@ -8,9 +8,66 @@ from snli_representations import token_indicator, load_representation, load_tfid
 from snli_config import K
 from collections import OrderedDict
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 import smlp
 import os
+
+
+class n_layer_SparseMLP(nn.Module):
+    """One-hidden-layer MLP that accepts sparse input tensors.
+
+    Inputs: feature vectors of size `input_dim` (e.g. bag-of-words).
+    Process: sparse matmul into a dense hidden layer, ReLU + dropout, linear (num_classes) and log-softmax outputs
+        log-softmax, rather than softmax, for numerical stability
+    Output: logprobs over `num_classes`.
+    """
+
+    def __init__(self, input_dim, hidden_dim, num_classes, dropout=0.2, layers=1):
+        """
+        input_dim: size of the input feature space (e.g. vocabulary size)
+        hidden_dim: width of the hidden layer
+        num_classes: number of output labels
+        dropout: fraction of hidden units zeroed during training (regularisation)
+        """
+        super().__init__()
+
+        # First-layer weights stay dense; inputs arriving here are sparse.
+        self.weight = nn.Parameter(
+            torch.empty(input_dim, hidden_dim)
+        )
+        self.bias = nn.Parameter(
+            torch.zeros(hidden_dim)
+        )
+
+        self.activation = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+        args = ()
+        if layers > 1:
+            for _ in range(1, layers):
+                args += (nn.Linear(hidden_dim, hidden_dim), nn.ReLU())
+
+
+        # Everything after the first layer is dense.
+        self.output = nn.Sequential(
+            *args,
+            nn.Linear(hidden_dim, num_classes),            
+            nn.LogSoftmax(dim=-1) # for numerical stability, it is common to use log softmax, rather than softmax
+        )
+
+
+    def forward(self, x):
+        """Map a sparse batch [batch, input_dim] to class log-probabilities [batch, num_classes]."""
+        # First matmul keeps x sparse; result is dense from here on.
+        x = torch.sparse.mm(x, self.weight)
+        x = x + self.bias
+
+        x = self.activation(x)
+        x = self.dropout(x)
+        # logprobs
+        return self.output(x)
+
 
 # Works with all representations. 
 def logistic_regression(representation_name, tfidf=False, max_iter = 5, n_jobs = -1):
@@ -42,8 +99,9 @@ def logistic_regression(representation_name, tfidf=False, max_iter = 5, n_jobs =
 
     return models
 
-def single_layer_mlp(
+def n_layer_mlp(
     representation_name,
+    layers=1,
     tfidf=False,
     hidden_dim=128,
     dropout=0.1,
@@ -84,11 +142,12 @@ def single_layer_mlp(
         )
 
         # Start each fold with a fresh model and optimizer.
-        model = smlp.SparseMLP(
+        model = n_layer_SparseMLP(
             input_dim=X_train_sparse.shape[1],
             hidden_dim=hidden_dim,
             num_classes=3,
             dropout=dropout,
+            layers=layers
         ).to(device)
 
         loss = torch.nn.NLLLoss() # We use negative log-likelihood loss
@@ -141,17 +200,30 @@ def main() -> None:
     snli_logistic_model_bag_of_tokens_tfidf = logistic_regression("snli_tfidf_bag_of_tokens", tfidf = True)
     save_architecture(snli_logistic_model_bag_of_tokens_tfidf, 'snli_tfidf_logistic_regression_bag_of_tokens')
 
-    snli_mlp1_token_indicator = single_layer_mlp("snli_token_indicator")
+    snli_mlp1_token_indicator = n_layer_mlp("snli_token_indicator")
     save_architecture(snli_mlp1_token_indicator, 'snli_mlp1_token_indicator')
 
-    snli_mlp1_bag_of_tokens = single_layer_mlp("snli_bag_of_tokens")
+    snli_mlp1_bag_of_tokens = n_layer_mlp("snli_bag_of_tokens")
     save_architecture(snli_mlp1_bag_of_tokens, 'snli_mlp1_bag_of_tokens')
 
-    snli_mlp1_token_indicator_tfidf = single_layer_mlp("snli_tfidf_token_indicator", tfidf = True)
+    snli_mlp1_token_indicator_tfidf = n_layer_mlp("snli_tfidf_token_indicator", tfidf = True)
     save_architecture(snli_mlp1_token_indicator_tfidf, 'snli_tfidf_mlp1_token_indicator')
 
-    snli_mlp1_bag_of_tokens_tfidf = single_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
+    snli_mlp1_bag_of_tokens_tfidf = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
     save_architecture(snli_mlp1_bag_of_tokens_tfidf, 'snli_tfidf_mlp1_bag_of_tokens')
+
+    # 2-layer
+    snli_mlp1_token_indicator = n_layer_mlp("snli_token_indicator", layers=2)
+    save_architecture(snli_mlp1_token_indicator, 'snli_mlp2_token_indicator')
+
+    snli_mlp1_bag_of_tokens = n_layer_mlp("snli_bag_of_tokens", layers=2)
+    save_architecture(snli_mlp1_bag_of_tokens, 'snli_mlp2_bag_of_tokens')
+
+    snli_mlp1_token_indicator_tfidf = n_layer_mlp("snli_tfidf_token_indicator", tfidf = True, layers=2)
+    save_architecture(snli_mlp1_token_indicator_tfidf, 'snli_tfidf_mlp2_token_indicator')
+
+    snli_mlp1_bag_of_tokens_tfidf = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True, layers=2)
+    save_architecture(snli_mlp1_bag_of_tokens_tfidf, 'snli_tfidf_mlp2_bag_of_tokens')
 
 if __name__ == '__main__':
     main()
