@@ -180,7 +180,8 @@ def main() -> None:
     train = snli["train"] # All training data regardless of fold
     y_train = np.asarray(train["label"])
     folds = np.asarray(train["cv_fold"])
-    print("Computing representations for the training set")
+    test = snli["test"]
+    y_test = np.asarray(test["label"])
     for tokenizer_name in TOKENIZERS:
         print(f"\n--- Using tokenizer {tokenizer_name} ---\n")
         tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH / f"{tokenizer_name}_bpe.json"))
@@ -197,12 +198,6 @@ def main() -> None:
 
         X_train_tfidf_bot_folds = convert_to_tfidf_folds(X_train_bot, folds)
         save_representation(X_train_tfidf_bot_folds, y_train, folds, f"{tokenizer_name}_tfidf_bag_of_tokens")
-
-    test = snli["test"]
-    y_test = np.asarray(test["label"])
-    print("\nComputing representations for the testing set")
-    for tokenizer_name in TOKENIZERS:
-        tokenizer = Tokenizer.from_file(str(TOKENIZER_PATH / f"{tokenizer_name}_bpe.json"))
 
         X_test_ti = token_indicator(test, tokenizer)
         save_representation(X_test_ti, y_test, None, f"{tokenizer_name}_token_indicator_test")
