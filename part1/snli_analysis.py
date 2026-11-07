@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import arviz as az
 import arviz_plots as azp
 import matplotlib.pyplot as plt
@@ -5,10 +7,10 @@ import numpy as np
 import pymc as pm
 from datasets import load_from_disk
 from sklearn.metrics import accuracy_score, f1_score
-from snli_config import DATA_PATH
+from snli_config import DATA_PATH, PREDICTIONS_PATH, K
 
 
-def analysis_cv_diff(cv_acc_diff):
+def analysis_cv_diff(cv_acc_diff, name_a, name_b):
     with pm.Model() as model:
         print("bayesian estimation")
         # Mean difference prior mu with expectation set to 0 and double the observed standard deviation
@@ -37,7 +39,7 @@ def analysis_cv_diff(cv_acc_diff):
         # The 2% in which they did not have been filtered out by our processing
         # This again shows it is absolutely possible to achieve a high accuracy and support our choice for the ROPE
 
-        rope_interval = [-0.05, 0.05]
+        rope_interval = [-0.1, 0.1]
         azp.plot_dist(trace, var_names=["mu"])
         posterior_mu = trace.posterior["mu"].values.flatten()
         hdi_interval = az.hdi(posterior_mu, prob=0.95)
@@ -57,7 +59,8 @@ def analysis_cv_diff(cv_acc_diff):
             rope_interval[1], color="red", linestyle="--", alpha=0.6, linewidth=1.5
         )
         ax.set_title(
-            "Bayesian Estimation: Difference in Model Accuracy (Model A - Model B)",
+            f"Bayesian estimation: difference in {K}-fold cross-validation accuracy\n"
+            f"{name_a.replace("_", " ").capitalize()} - {name_b.replace("_", " ").capitalize()}",
             fontsize=12,
             pad=15,
         )
@@ -71,26 +74,48 @@ def analysis_cv_diff(cv_acc_diff):
         print(f"ROPE Interval: {rope_interval}")
 
         plt.tight_layout()
-        plt.show()
+        plt.savefig(f"part1/figures/BE_{name_a}-{name_b}.png")
 
 def main():
+    print("getting labels and folds")
     snli = load_from_disk(DATA_PATH)
-
-    print("getting labels")
     cv_labels = np.array(snli["train"]["label"])
     cv_folds = np.array(snli["train"]["cv_fold"])
-    test_labels = np.array(snli["test"]["label"])
+    del snli
+
+    print("getting predictions")
+    predictions = sorted(Path(PREDICTIONS_PATH).glob("*.npy"))
+    predictions = {p.stem: np.load(p) for p in predictions}
+
+    comparisons = [
+        ("snli_LR_token_indicator",
+         "snli_LR_tfidf_bag_of_tokens"),
+        ("snli_LR_tfidf_bag_of_tokens",
+         "mistral_LR_tfidf_bag_of_tokens"),
+        ("snli_MLP1_tfidf_bag_of_tokens",
+         "mistral_MLP1_tfidf_bag_of_tokens"),
+        ("snli_MLP2_tfidf_bag_of_tokens",
+         "mistral_MLP2_tfidf_bag_of_tokens"),
+    ]
 
     print("computing metrics")
-    cv_pred_a = np.random.randint(0, 2, len(cv_labels))
-    cv_pred_b = np.random.randint(0, 2, len(cv_labels))
+    diffs = []
+    for (name_a, name_b) in comparisons:
+        pred_a, pred_b = predictions[name_a], predictions[name_b]
+        cv_acc_diff = np.zeros(len(np.unique(cv_folds)))
+        for fold in np.unique(cv_folds):
+            mask = cv_folds == fold
+            fold_labels = cv_labels[mask]
+            fold_pred_a = pred_a[mask]
+            fold_pred_b = pred_b[mask]
+            fold_acc_a = accuracy_score(fold_labels, fold_pred_a)
+            fold_acc_b = accuracy_score(fold_labels, fold_pred_b)
+            cv_acc_diff[fold] = fold_acc_a - fold_acc_b
+        diffs.append(cv_acc_diff)
 
-    cv_acc_diff = np.zeros(len(np.unique(cv_folds)))
-    for fold in np.unique(cv_folds):
-        mask = cv_folds == fold
-        fold_labels = cv_labels[mask]
-        fold_pred_a = cv_pred_a[mask]
-        fold_pred_b = cv_pred_b[mask]
-        fold_acc_a = accuracy_score(fold_labels, fold_pred_a)
-        fold_acc_b = accuracy_score(fold_labels, fold_pred_b)
-        cv_acc_diff[fold] = fold_acc_a - fold_acc_b
+    print("running Bayesian estimation")
+    for (name_a, name_b), diff in zip(comparisons, diffs):
+        analysis_cv_diff(diff, name_a, name_b)
+
+if __name__ == "__main__":
+    main()
