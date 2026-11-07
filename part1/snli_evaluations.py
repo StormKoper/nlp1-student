@@ -13,6 +13,14 @@ import csv
 from scipy.sparse import load_npz
 from snli_config import REPRESENTATIONS_PATH
 
+class ModelUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        # Support models saved before the class's pickle module name was fixed.
+        if name == "n_layer_SparseMLP" and module in ("__main__", "smlp"):
+            from snli_architectures import n_layer_SparseMLP
+            return n_layer_SparseMLP
+        return super().find_class(module, name)
+
 # To evaluate all of our models 
 
 # To evaluate _._._._.test i.e. mistral_bag_of_tokens_test
@@ -66,7 +74,7 @@ def main() -> None:
         
         # load the models
         with open(ARCHITECTURES_PATH / f"{model_name}.pickle", "rb") as file:
-            models = pickle.load(file)
+            models = ModelUnpickler(file).load()
 
         # Load up the test data
         test_path = REPRESENTATIONS_PATH / test_name
