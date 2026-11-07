@@ -221,34 +221,34 @@ def save_predictions(preds, representation_name) -> None:
 def main() -> None:
     #print("Logistic regression")
     #snli_logistic_model_token_indicator, preds = logistic_regression("snli_token_indicator")
-    #save_architecture(snli_logistic_model_token_indicator, #"snli_logistic_regression_token_indicator")
-    #save_predictions(preds, "snli_logistic_regression_token_indicator")
+    #save_architecture(snli_logistic_model_token_indicator, #"snli_LR_token_indicator")
+    #save_predictions(preds, "snli_LR_token_indicator")
 
     #snli_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression#("snli_tfidf_bag_of_tokens", tfidf = True)
-    #save_architecture(snli_logistic_model_bag_of_tokens_tfidf, "snli_tfidf_logistic_regression_bag_of_tokens")
-    #save_predictions(preds, "snli_tfidf_logistic_regression_bag_of_tokens")
+    #save_architecture(snli_logistic_model_bag_of_tokens_tfidf, "snli_tfidf_LR_bag_of_tokens")
+    #save_predictions(preds, "snli_tfidf_LR_bag_of_tokens")
 
     #mistral_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression("mistral_tfidf_bag_of_tokens", tfidf = True)
-    #save_architecture(mistral_logistic_model_bag_of_tokens_tfidf, "mistral_tfidf_logistic_regression_bag_of_tokens")
-    #save_predictions(preds, "mistral_tfidf_logistic_regression_bag_of_tokens")
+    #save_architecture(mistral_logistic_model_bag_of_tokens_tfidf, "mistral_tfidf_LR_bag_of_tokens")
+    #save_predictions(preds, "mistral_tfidf_LR_bag_of_tokens")
     
     print("Single layer MLP")
     snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
-    save_architecture(snli_mlp1_bag_of_tokens_tfidf, "snli_tfidf_mlp1_bag_of_tokens")
-    save_predictions(preds, "snli_tfidf_mlp1_bag_of_tokens")
+    save_architecture(snli_mlp1_bag_of_tokens_tfidf, "snli_MLP1_tfidf_bag_of_tokens")
+    save_predictions(preds, "snli_MLP1_tfidf_bag_of_tokens")
 
     snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("mistral_tfidf_bag_of_tokens", tfidf = True)
-    save_architecture(snli_mlp1_bag_of_tokens_tfidf, "mistral_tfidf_mlp1_bag_of_tokens")
-    save_predictions(preds, "mistral_tfidf_mlp1_bag_of_tokens")
+    save_architecture(snli_mlp1_bag_of_tokens_tfidf, "mistral_MLP1_tfidf_bag_of_tokens")
+    save_predictions(preds, "mistral_MLP1_tfidf_bag_of_tokens")
 
     print("Double layer MLP")
     snli_mlp2_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True, layers=2)
-    save_architecture(snli_mlp2_bag_of_tokens_tfidf, "snli_tfidf_mlp2_bag_of_tokens")
-    save_predictions(preds, "snli_tfidf_mlp2_bag_of_tokens")
+    save_architecture(snli_mlp2_bag_of_tokens_tfidf, "snli_MLP2_tfidf_bag_of_tokens")
+    save_predictions(preds, "snli_MLP2_tfidf_bag_of_tokens")
 
     mistral_mlp2_bag_of_tokens_tfidf, preds = n_layer_mlp("mistral_tfidf_bag_of_tokens", tfidf = True, layers=2)
-    save_architecture(mistral_mlp2_bag_of_tokens_tfidf, "mistral_tfidf_mlp2_bag_of_tokens")
-    save_predictions(preds, "mistral_tfidf_mlp2_bag_of_tokens")
+    save_architecture(mistral_mlp2_bag_of_tokens_tfidf, "mistral_MLP2_tfidf_bag_of_tokens")
+    save_predictions(preds, "mistral_MLP2_tfidf_bag_of_tokens")
 
 if __name__ == "__main__":
     # Use the importable module name when pickling model classes.
