@@ -41,6 +41,7 @@ def analysis_cv_diff(cv_acc_diff, name_a, name_b):
 
         rope_interval = [-0.1, 0.1]
         azp.plot_dist(trace, var_names=["mu"])
+        plt.gcf().set_size_inches(6, 3)
         posterior_mu = trace.posterior["mu"].values.flatten()
         hdi_interval = az.hdi(posterior_mu, prob=0.95)
         mean_val = np.mean(posterior_mu)
@@ -74,7 +75,7 @@ def analysis_cv_diff(cv_acc_diff, name_a, name_b):
         print(f"ROPE Interval: {rope_interval}")
 
         plt.tight_layout()
-        plt.savefig(f"part1/figures/BE_{name_a}-{name_b}.png")
+        plt.savefig(f"part1/figures/BE_{name_a}-{name_b}.png", dpi=400)
 
 def main():
     print("getting labels and folds")
@@ -83,7 +84,7 @@ def main():
     cv_folds = np.array(snli["train"]["cv_fold"])
     del snli
 
-    print("getting predictions")
+    print("getting predictions and comparisons")
     predictions = sorted(Path(PREDICTIONS_PATH).glob("*.npy"))
     predictions = {p.stem: np.load(p) for p in predictions}
 
@@ -97,6 +98,17 @@ def main():
         ("snli_MLP2_tfidf_bag_of_tokens",
          "mistral_MLP2_tfidf_bag_of_tokens"),
     ]
+
+    tokenizers = ["snli", "mistral"]
+    representation = "tfidf_bag_of_tokens"
+    models = ["LR", "MLP1", "MLP2"]
+    for tokenizer in tokenizers:
+        for i in range(len(models)):
+            for j in range(i+1, len(models)):
+                model_a, model_b = models[i], models[j]
+                name_a = f"{tokenizer}_{model_a}_{representation}"
+                name_b = f"{tokenizer}_{model_b}_{representation}"
+                comparisons.append((name_a, name_b))
 
     print("computing metrics")
     diffs = []
