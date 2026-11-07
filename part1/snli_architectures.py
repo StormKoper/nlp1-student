@@ -54,6 +54,7 @@ class n_layer_SparseMLP(nn.Module):
             nn.LogSoftmax(dim=-1) # for numerical stability, it is common to use log softmax, rather than softmax
         )
 
+        nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
         """Map a sparse batch [batch, input_dim] to class log-probabilities [batch, num_classes]."""
@@ -106,8 +107,8 @@ def n_layer_mlp(
     batch_size=64,
     learning_rate=1e-3,
     weight_decay=1e-4,
-    num_epochs=2,
-    device="cpu",
+    num_epochs=5,
+    device="cuda",
 ):
     device = torch.device(device)
     models = OrderedDict()
@@ -193,7 +194,7 @@ def n_layer_mlp(
             for X_batch, _ in test_loader:
                 log_probs = model(X_batch.to(device))
                 predictions = log_probs.argmax(dim=1)
-                prediction_batches.append(predictions.cpu().numpy())
+                prediction_batches.append(predictions.detach().cpu().numpy())
         predictions = np.concatenate(prediction_batches)
         preds[~train_mask] = predictions
         models[k] = model
@@ -218,27 +219,27 @@ def save_predictions(preds, representation_name) -> None:
 
 
 def main() -> None:
-    print("Logistic regression")
-    snli_logistic_model_token_indicator, preds = logistic_regression("snli_token_indicator")
-    save_architecture(snli_logistic_model_token_indicator, "snli_logistic_regression_token_indicator")
-    save_predictions(preds, "snli_logistic_regression_token_indicator")
+    #print("Logistic regression")
+    #snli_logistic_model_token_indicator, preds = logistic_regression("snli_token_indicator")
+    #save_architecture(snli_logistic_model_token_indicator, #"snli_logistic_regression_token_indicator")
+    #save_predictions(preds, "snli_logistic_regression_token_indicator")
 
-    snli_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression("snli_tfidf_bag_of_tokens", tfidf = True)
-    save_architecture(snli_logistic_model_bag_of_tokens_tfidf, "snli_tfidf_logistic_regression_bag_of_tokens")
-    save_predictions(preds, "snli_tfidf_logistic_regression_bag_of_tokens")
+    #snli_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression#("snli_tfidf_bag_of_tokens", tfidf = True)
+    #save_architecture(snli_logistic_model_bag_of_tokens_tfidf, "snli_tfidf_logistic_regression_bag_of_tokens")
+    #save_predictions(preds, "snli_tfidf_logistic_regression_bag_of_tokens")
 
-    mistral_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression("mistral_tfidf_bag_of_tokens", tfidf = True)
-    save_architecture(mistral_logistic_model_bag_of_tokens_tfidf, "mistral_tfidf_logistic_regression_bag_of_tokens")
-    save_predictions(preds, "mistral_tfidf_logistic_regression_bag_of_tokens")
+    #mistral_logistic_model_bag_of_tokens_tfidf, preds = logistic_regression("mistral_tfidf_bag_of_tokens", tfidf = True)
+    #save_architecture(mistral_logistic_model_bag_of_tokens_tfidf, "mistral_tfidf_logistic_regression_bag_of_tokens")
+    #save_predictions(preds, "mistral_tfidf_logistic_regression_bag_of_tokens")
     
-    # print("Single layer MLP")
-    # snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
-    # save_architecture(snli_mlp1_bag_of_tokens_tfidf, "snli_tfidf_mlp1_bag_of_tokens")
-    # save_predictions(preds, "snli_tfidf_mlp1_bag_of_tokens")
+    print("Single layer MLP")
+    snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True)
+    save_architecture(snli_mlp1_bag_of_tokens_tfidf, "snli_tfidf_mlp1_bag_of_tokens")
+    save_predictions(preds, "snli_tfidf_mlp1_bag_of_tokens")
 
-    # snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("mistral_tfidf_bag_of_tokens", tfidf = True)
-    # save_architecture(snli_mlp1_bag_of_tokens_tfidf, "mistral_tfidf_mlp1_bag_of_tokens")
-    # save_predictions(preds, "mistral_tfidf_mlp1_bag_of_tokens")
+    snli_mlp1_bag_of_tokens_tfidf, preds = n_layer_mlp("mistral_tfidf_bag_of_tokens", tfidf = True)
+    save_architecture(snli_mlp1_bag_of_tokens_tfidf, "mistral_tfidf_mlp1_bag_of_tokens")
+    save_predictions(preds, "mistral_tfidf_mlp1_bag_of_tokens")
 
     print("Double layer MLP")
     snli_mlp2_bag_of_tokens_tfidf, preds = n_layer_mlp("snli_tfidf_bag_of_tokens", tfidf = True, layers=2)
@@ -250,4 +251,6 @@ def main() -> None:
     save_predictions(preds, "mistral_tfidf_mlp2_bag_of_tokens")
 
 if __name__ == "__main__":
-    main()
+    # Use the importable module name when pickling model classes.
+    import snli_architectures
+    snli_architectures.main()
