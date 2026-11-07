@@ -15,7 +15,10 @@ def analysis_cv_diff(cv_acc_diff, name_a, name_b):
         print("bayesian estimation")
         # Mean difference prior mu with expectation set to 0 and double the observed standard deviation
         # This makes it a weakly informative prior based on the observed data
-        mu = pm.Normal("mu", mu=0, sigma=np.std(cv_acc_diff) * 2)
+        mu = pm.Normal("mu", 
+                       mu=0, 
+                       sigma=max(0.01, 2 * np.sqrt(np.mean(cv_acc_diff ** 2)))
+        )
         # Standard deviation of difference must be positive, therefore a half-normal distribution is used
         # Again, the standard deviation is set to double the observed standard deviation
         # Supporting the weakly informative prior viewpoint
@@ -39,7 +42,7 @@ def analysis_cv_diff(cv_acc_diff, name_a, name_b):
         # The 2% in which they did not have been filtered out by our processing
         # This again shows it is absolutely possible to achieve a high accuracy and support our choice for the ROPE
 
-        rope_interval = [-0.1, 0.1]
+        rope_interval = [-0.01, 0.01]
         azp.plot_dist(trace, var_names=["mu"])
         plt.gcf().set_size_inches(6, 3)
         posterior_mu = trace.posterior["mu"].values.flatten()
