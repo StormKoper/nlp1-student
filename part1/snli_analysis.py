@@ -11,18 +11,28 @@ from snli_config import DATA_PATH, PREDICTIONS_PATH, K
 
 
 def analysis_cv_diff(cv_acc_diff, name_a, name_b):
+    """
+    Perform Bayesian estimation with a region of practical equivalence (ROPE).
+    Distribution and parameter choices follow the paper by Kruschke:
+    Kruschke, J. K. (2012, July 9). Bayesian Estimation Supersedes the t Test. Journal of
+    Experimental Psychology: General. Advance online publication. doi: 10.1037/a0029146
+
+    The overall sentiment is to make reasonable weakly informative choices based on
+    knowledge of the possible scale of the data and use the recommended student-t
+    distribution with the normality parameter as stated in the paper.
+
+    The choice of the ROPE is also made on the premise that the difference in accuracy
+    is bounded between -1.0 and 1.0. The ROPE chosen is [-0.01, 0.01], which is a 1%
+    difference in accuracy.
+    """
     with pm.Model() as model:
         print("bayesian estimation")
-        # Mean difference prior mu with expectation set to 0 and double the observed standard deviation
-        # This makes it a weakly informative prior based on the observed data
-        mu = pm.Normal("mu", 
-                       mu=0, 
-                       sigma=max(0.01, 2 * np.sqrt(np.mean(cv_acc_diff ** 2)))
-        )
+        # Weakly informative prior centered around 0 (no difference between models)
+        # Standard deviation chosen as 1.0 due to the possible scale [-1.0, 1.0] for accuracy difference
+        mu = pm.Normal("mu", mu=0, sigma=1.0)
         # Standard deviation of difference must be positive, therefore a half-normal distribution is used
-        # Again, the standard deviation is set to double the observed standard deviation
-        # Supporting the weakly informative prior viewpoint
-        sigma = pm.HalfNormal("sigma", sigma=np.std(cv_acc_diff) * 2)
+        # Again, choosing a weakly informative prior based on the possible scale of the data
+        sigma = pm.HalfNormal("sigma", sigma=0.5)
         # Cross-validation with a small amount of folds is vulnerable to outliers
         # The student-t distribution is more robust to outliers due to its normality parameter nu
         nu = pm.Exponential("nu", 1 / 29.0) + 1
@@ -32,16 +42,7 @@ def analysis_cv_diff(cv_acc_diff, name_a, name_b):
         trace = pm.sample(draws=2000, tune=1000, return_inferencedata=True)
 
         print("ROPE")
-        # The dataset has many, relatively short examples (550K examples with 22.4 words per examples on average)
-        # This includes the premise (14.1 words on average) and the hypothesis (8.3 words on average)
-        # Additionally, the task is relatively straightforward, due to it resting on logical inference
-        # Based on this, we expect accuracies to be relatively high
-        # In turn, that results in us choosing a relatively small ROPE interval
-        # This is because when accuracies are already high, a small difference is much more impactful
-        # Additionally, the annotators achieved majority consensus in 98% of examples
-        # The 2% in which they did not have been filtered out by our processing
-        # This again shows it is absolutely possible to achieve a high accuracy and support our choice for the ROPE
-
+        # ROPE interval of 1% accuracy difference
         rope_interval = [-0.01, 0.01]
         azp.plot_dist(trace, var_names=["mu"])
         plt.gcf().set_size_inches(6, 3)
