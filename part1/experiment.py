@@ -11,9 +11,9 @@ from collections import OrderedDict
 from tqdm.auto import tqdm
 import random
 
-import loglin
-import smlp
-import clslib
+import part1.loglin as loglin
+import part1.smlp as smlp
+import part1.clslib as clslib
 
 
 def download_ag_news_texts():
