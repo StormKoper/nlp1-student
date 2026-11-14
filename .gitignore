@@ -1,5 +1,4 @@
 .*/
-/part1/our-work/data
-/part1/data
-/part1/figures
 __pycache__/
+data/
+figures/
