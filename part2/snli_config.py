@@ -4,6 +4,7 @@ ROOT: Path = Path(__file__).resolve().parent
 DATA_PATH: Path = ROOT / "data" / "snli"
 EMBEDDING_PATH: Path = ROOT / "data" / "embedding"
 VOCABULARY_PATH: Path = ROOT / "data" / "vocabulary"
+TOKENIZATION_PATH: Path = ROOT / "data" / "tokenization"
 
 # Folding and Seed
 K: int = 5
