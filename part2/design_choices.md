@@ -13,3 +13,11 @@ We use the same fastText tokenizer as in the preprocessing pipeline to split eac
 We tokenize the premise and hypothesis separately to preserve their roles. Since they can have different lengths, we pad the shorter sentence with the embedding model's padding token and store the result as two columns of word IDs. If a sentence is empty, we replace it with the unknown-token ID so the GRU always receives at least one token.
 
 We apply this conversion to every example in the training, validation, and test splits, keeping the original labels and fold assignments. The tokenized datasets are saved separately to disk so we do not need to repeat tokenization during training. The original text datasets remain unchanged.
+
+## SNLI Architectures
+
+We reuse the tutorial's cross-validation pipeline for training and evaluation. Since our token IDs are already cached, we provide a simple tokenizer wrapper that returns them directly. We use the five existing stratified folds to keep experiments comparable.
+
+We use a GRU with hidden size 128 and the tutorial's softmax regressor with two hidden layers of size 50 and dropout of 0.1. We keep AdamW with a learning rate of `1e-3`, weight decay of `1e-4`, and batch size 64, training for 5 epochs by default.
+
+We restore predictions to their original dataset order and save them alongside labels, fold assignments, and accuracy metrics for later analysis.

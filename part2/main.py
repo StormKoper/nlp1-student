@@ -1,7 +1,7 @@
 from pathlib import Path
 from shutil import rmtree
 
-from . import snli_processing, snli_architectures
+from . import snli_processing, snli_tokenization, snli_architectures
 from .snli_config import ROOT
 
 
@@ -22,11 +22,9 @@ def clear_data_dir(path: Path) -> None:
 
 def main() -> None:
     clear_data_dir(ROOT / "data")
-    snli, fold_ids = snli_processing.get_snli_dataset()
-    snli_processing.print_snli_summary(snli, fold_ids)
-    embedding_model = snli_processing.get_embedding_model()
-    snli_processing.print_embedding_summary(embedding_model)
-    snli_architectures.main(snli, embedding_model)
+    snli_processing.main()
+    snli_tokenization.main()
+    snli_architectures.main()
 
 
 if __name__ == "__main__":
