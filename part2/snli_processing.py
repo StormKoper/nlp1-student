@@ -4,10 +4,10 @@ from urllib.request import urlretrieve
 from zipfile import ZipFile
 
 import numpy as np
-from clslib import PretrainedEmbeddings
+from .clslib import PretrainedEmbeddings
 from datasets import DatasetDict, concatenate_datasets, load_dataset, load_from_disk
 from sklearn.model_selection import StratifiedKFold
-from snli_config import (
+from .snli_config import (
     DATA_PATH,
     DIMS,
     EMBEDDING,
