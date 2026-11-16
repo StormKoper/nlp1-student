@@ -13,6 +13,7 @@ import itertools
 import json
 
 from . import clslib
+from .snli_gru import GRUEncoder
 
 
 class LabelledCorpus(Dataset):
@@ -174,6 +175,11 @@ def train(
              embedding_matrix=torch.tensor(emb_model.vectors, dtype=torch.float32), 
              **enc_kwargs
          )
+    elif enc_type == 'gru':
+        encoder = GRUEncoder(
+            embedding_matrix=torch.as_tensor(emb_model.vectors, dtype=torch.float32),
+            **enc_kwargs
+        )
     else:
         raise ValueError(f"I do not know this encoder type: {enc_type}")    
 
@@ -225,7 +231,7 @@ def load(path, emb_model: clslib.PretrainedEmbeddings, device="cpu"):
         args = json.load(f)
     
     with open(f"{path}.pt", "rb") as f:
-        state_dict = torch.load(f)
+        state_dict = torch.load(f, map_location="cpu", weights_only=True)
         
     if isinstance(device, str):
         device = torch.device(device)
@@ -240,6 +246,11 @@ def load(path, emb_model: clslib.PretrainedEmbeddings, device="cpu"):
              embedding_matrix=torch.tensor(emb_model.vectors, dtype=torch.float32), 
              **args['enc_kwargs']
          )
+    elif args['enc_type'] == 'gru':
+        encoder = GRUEncoder(
+            embedding_matrix=torch.as_tensor(emb_model.vectors, dtype=torch.float32),
+            **args['enc_kwargs']
+        )
     else:
         raise ValueError(f"I do not know this encoder type: {args['enc_type']}")    
 
