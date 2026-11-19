@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from datasets import load_from_disk
+import os
 
 from . import clslib, experiment
 from .snli_config import DIMS, EMBEDDING, EMBEDDING_PATH, K, ROOT, SEED, SKIP_FIRST, TOKENIZATION_PATH
@@ -15,6 +16,48 @@ class CachedTokenIDs(clslib.Tokenizer):
 
     def ids(self, token_ids):
         return token_ids
+
+
+def cross_validate(data_splits: dict, embedding_model: clslib.PretrainedEmbeddings,
+          freeze_embeddings: bool, num_epochs, enc_type: str,
+          labels: np.array, folds: np.array, device=None, save_to=None
+        ):
+
+    # the tutorial handles model creation, batches, training, evaluation and saving.
+    results = experiment.cross_validation(
+        outcome_space=["entailment", "neutral", "contradiction"],
+        data_splits=data_splits,
+        tokenizer=CachedTokenIDs(),
+        emb_model=embedding_model,
+        enc_type=enc_type,
+        enc_kwargs={"hidden_size": 128, "freeze_embeddings": freeze_embeddings},
+        regressor_kwargs={"hidden_size1": 50, "hidden_size2": 50, "dropout": 0.1},
+        opt_kwargs={"learning_rate": 1e-3, "weight_decay": 1e-4,
+                    "batch_size": 64, "num_epochs": num_epochs},
+        device=device,
+        save_to=save_to / "architectures" / f"snli_{enc_type}",
+    )
+
+    # put each folds predictions back into the original snli row order.
+    predictions = np.empty(len(labels), dtype=np.int64)
+    for fold, fold_predictions in results["predictions"].items():
+        predictions[folds == fold] = fold_predictions
+
+    # save to cache
+    prediction_path = save_to / "predictions"
+    if not os.path.exists(prediction_path):
+        prediction_path.mkdir(parents=True, exist_ok=True)
+
+    prediction_path_model = prediction_path / f"{enc_type}"
+    np.save(prediction_path_model / f"snli_{enc_type}.npy", predictions)
+    np.save(prediction_path_model / f"snli_{enc_type}_labels.npy", labels)
+    np.save(prediction_path_model / f"snli_{enc_type}_folds.npy", folds)
+    accuracy = float(np.mean(predictions == labels))
+    print(f"{enc_type} cross-validation accuracy: {accuracy:.4f}")
+    with (save_to / "architectures" / f"snli_{enc_type}" / "metrics.json").open("w") as file:
+        json.dump({"fold_accuracies": results["accuracies"], "accuracy": accuracy,
+                   "seed": SEED}, file, indent=2)
+    return results
 
 
 # main training function. 
@@ -60,38 +103,17 @@ def main(*, num_epochs=5, freeze_embeddings=True,
         for fold in range(K)
     }
 
-    # the tutorial handles model creation, batches, training, evaluation and saving.
-    results = experiment.cross_validation(
-        outcome_space=["entailment", "neutral", "contradiction"],
-        data_splits=data_splits,
-        tokenizer=CachedTokenIDs(),
-        emb_model=embedding_model,
-        enc_type="gru",
-        enc_kwargs={"hidden_size": 128, "freeze_embeddings": freeze_embeddings},
-        regressor_kwargs={"hidden_size1": 50, "hidden_size2": 50, "dropout": 0.1},
-        opt_kwargs={"learning_rate": 1e-3, "weight_decay": 1e-4,
-                    "batch_size": 64, "num_epochs": num_epochs},
-        device=device,
-        save_to=save_to / "architectures" / "snli_GRU",
-    )
-
-    # put each folds predictions back into the original snli row order.
-    predictions = np.empty(len(labels), dtype=np.int64)
-    for fold, fold_predictions in results["predictions"].items():
-        predictions[folds == fold] = fold_predictions
-
-    # save to cache
-    prediction_path = save_to / "predictions"
-    prediction_path.mkdir(parents=True, exist_ok=True)
-    np.save(prediction_path / "snli_GRU.npy", predictions)
-    np.save(prediction_path / "snli_GRU_labels.npy", labels)
-    np.save(prediction_path / "snli_GRU_folds.npy", folds)
-    accuracy = float(np.mean(predictions == labels))
-    print(f"GRU cross-validation accuracy: {accuracy:.4f}")
-    with (save_to / "architectures" / "snli_GRU" / "metrics.json").open("w") as file:
-        json.dump({"fold_accuracies": results["accuracies"], "accuracy": accuracy,
-                   "seed": SEED}, file, indent=2)
-    return results
+    results_gru = cross_validate(data_splits=data_splits, embedding_model=embedding_model,
+                                 freeze_embeddings=freeze_embeddings,
+                                 num_epochs=num_epochs, enc_type='gru',
+                                 labels=labels, folds=folds
+                                )
+    results_embpool = cross_validate(data_splits=data_splits, embedding_model=embedding_model,
+                                 freeze_embeddings=freeze_embeddings,
+                                 num_epochs=num_epochs, enc_type='embed-and-pool',
+                                 labels=labels, folds=folds
+                                )
+    return results_gru, results_embpool
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ import json
 
 from . import clslib
 from .snli_gru import GRUEncoder
+from .snli_embed_and_pool import EmbedAndPoolEncoder
 
 
 class LabelledCorpus(Dataset):
@@ -166,7 +167,7 @@ def train(
         json.dump(args, f, indent=2, ensure_ascii=False) 
 
     if enc_type == 'embed-and-pool':
-        encoder = clslib.EmbedAndPoolEncoder(
+        encoder = EmbedAndPoolEncoder(
             embedding_matrix=torch.tensor(emb_model.vectors, dtype=torch.float32),
             **enc_kwargs
          )
