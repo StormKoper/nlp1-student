@@ -22,17 +22,26 @@ def cross_validate(data_splits: dict, embedding_model: clslib.PretrainedEmbeddin
           labels: np.array, folds: np.array, device=None, save_to=None
         ):
 
-    # the tutorial handles model creation, batches, training, evaluation and saving.
+    enc_kwargs = {"freeze_embeddings": freeze_embeddings}
+    if enc_type == "gru":
+        enc_kwargs["hidden_size"] = 128
+    elif enc_type == "embed-and-pool":
+        enc_kwargs["pool_type"] = "average"
+
     results = experiment.cross_validation(
         outcome_space=["entailment", "neutral", "contradiction"],
         data_splits=data_splits,
         tokenizer=CachedTokenIDs(),
         emb_model=embedding_model,
         enc_type=enc_type,
-        enc_kwargs={"hidden_size": 128, "freeze_embeddings": freeze_embeddings},
+        enc_kwargs=enc_kwargs,
         regressor_kwargs={"hidden_size1": 50, "hidden_size2": 50, "dropout": 0.1},
-        opt_kwargs={"learning_rate": 1e-3, "weight_decay": 1e-4,
-                    "batch_size": 64, "num_epochs": num_epochs},
+        opt_kwargs={
+            "learning_rate": 1e-3,
+            "weight_decay": 1e-4,
+            "batch_size": 64,
+            "num_epochs": num_epochs,
+        },
         device=device,
         save_to=save_to / "architectures" / f"snli_{enc_type}",
     )

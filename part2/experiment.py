@@ -238,10 +238,10 @@ def load(path, emb_model: clslib.PretrainedEmbeddings, device="cpu"):
         device = torch.device(device)
         
     if args['enc_type'] == 'embed-and-pool':
-        encoder = clslib.EmbedAndPoolEncoder(
+        encoder = EmbedAndPoolEncoder(
             embedding_matrix=torch.tensor(emb_model.vectors, dtype=torch.float32),
-            **args['enc_kwargs']
-         )
+            **args['enc_kwargs'],
+        )
     elif args['enc_type'] == 'lstm':
          encoder = clslib.LSTMEncoder(
              embedding_matrix=torch.tensor(emb_model.vectors, dtype=torch.float32), 

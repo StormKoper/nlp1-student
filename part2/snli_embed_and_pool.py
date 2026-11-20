@@ -41,11 +41,29 @@ class EmbedAndPoolEncoder(nn.Module):
 
     @property
     def enc_dim(self):
-        return self.embedding.embedding_dim
+        return 2 * self.embedding.embedding_dim
 
     @property
     def pad_idx(self):
         return self.embedding.padding_idx
+
+    def pool_sentence(self, ids):
+        # ids: [batch, word_position]
+        valid = ids.ne(self.pad_idx).unsqueeze(-1)
+        vectors = self.embedding(ids)
+
+        if self.pool_type == "max":
+            pooled = vectors.masked_fill(~valid, float("-inf")).amax(dim=1)
+            return pooled.masked_fill(~valid.any(dim=1), 0.0)
+
+        summed = vectors.masked_fill(~valid, 0.0).sum(dim=1)
+        if self.pool_type == "sum":
+            return summed
+        if self.pool_type == "average":
+            word_count = valid.sum(dim=1).clamp_min(1)
+            return summed / word_count
+
+        raise ValueError(f"Unknown pooling type: {self.pool_type}")
 
     def forward(self, x):     
         """
@@ -53,23 +71,10 @@ class EmbedAndPoolEncoder(nn.Module):
         
         x: token ids with shape (batch_size, max_seq_length, emb_dim)        
         """
-        # [..., max_seq_length, emb_dim]
-        e = self.embedding(x)  
-        # Normalization for pooling
-        if self.pool_type == 'average':
-            # Total non-padding tokens (min of 1 to avoid problems when averaging the sum of embs)
-            # [..., max_seq_length, 1]  # keepdim=True keeps the last axis, this is needed for division later on
-            den = torch.sum(x.ne(self.embedding.padding_idx), dim=-1, keepdim=True).clamp_min(1)
-        elif self.pool_type == 'sum':  # sum pooling
-            den = 1
-        elif self.pool_type == 'max':  # max pooling
-            return torch.max(e, dim=-2)
-        else:
-            raise NotImplementedError("No such pool type have been implemented.")
-
-        # [..., emb_dim]
-        h = torch.sum(e, -2) / den  # see that we reduce-sum the sequence dimension, not the representation dimension
-        return h
+        # x: [batch, word_position, sentence_role]
+        premise = self.pool_sentence(x[..., 0])
+        hypothesis = self.pool_sentence(x[..., 1])
+        return torch.cat((premise, hypothesis), dim=-1)
 
 
 # helper function from tutorial
