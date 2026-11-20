@@ -210,11 +210,13 @@ def train(
         if epoch != 0:
             if val_metrics["loss"] <= best_val_loss:
                 best_val_loss = val_metrics["loss"]
-                torch.save(model.state_dict(), f"{save_to}.pt")
+                if opt_kwargs.get("save_checkpoints", True):
+                    torch.save(model.state_dict(), f"{save_to}.pt")
                 best_epoch = epoch
         else:
             best_val_loss = val_metrics["loss"]
-            torch.save(model.state_dict(), f"{save_to}.pt")
+            if opt_kwargs.get("save_checkpoints", True):
+                torch.save(model.state_dict(), f"{save_to}.pt")
             best_epoch = epoch
     
     time_training = time.time()

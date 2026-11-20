@@ -19,12 +19,13 @@ class CachedTokenIDs(clslib.Tokenizer):
 
 def cross_validate(data_splits: dict, embedding_model: clslib.PretrainedEmbeddings,
           freeze_embeddings: bool, num_epochs, enc_type: str,
-          labels: np.array, folds: np.array, device=None, save_to=None
+          labels: np.array, folds: np.array, device=None, save_to=None,
+          word_dropout=0.0, save_checkpoints=True
         ):
 
     enc_kwargs = {"freeze_embeddings": freeze_embeddings}
     if enc_type == "gru":
-        enc_kwargs["hidden_size"] = 128
+        enc_kwargs.update(hidden_size=128, word_dropout=word_dropout)
     elif enc_type == "embed-and-pool":
         enc_kwargs["pool_type"] = "average"
 
@@ -41,6 +42,7 @@ def cross_validate(data_splits: dict, embedding_model: clslib.PretrainedEmbeddin
             "weight_decay": 1e-4,
             "batch_size": 64,
             "num_epochs": num_epochs,
+            "save_checkpoints": save_checkpoints,
         },
         device=device,
         save_to=save_to / "architectures" / f"snli_{enc_type}",
@@ -67,7 +69,7 @@ def cross_validate(data_splits: dict, embedding_model: clslib.PretrainedEmbeddin
 
 # main training function. 
 def main(*, num_epochs=5, freeze_embeddings=True,
-         device=None, save_to=None):
+         device=None, save_to=None, gru_dropouts=None):
     embedding_file = EMBEDDING_PATH / EMBEDDING
 
     # check caches
@@ -107,6 +109,17 @@ def main(*, num_epochs=5, freeze_embeddings=True,
         }
         for fold in range(K)
     }
+
+    if gru_dropouts is not None:
+        for rate in gru_dropouts:
+            torch.manual_seed(SEED)
+            cross_validate(
+                data_splits, embedding_model, freeze_embeddings, 3,
+                "gru", labels, folds, device=device,
+                save_to=save_to / f"dropout-{rate:g}",
+                word_dropout=rate, save_checkpoints=False,
+            )
+        return
 
     results_gru = cross_validate(
         data_splits=data_splits,

@@ -20,6 +20,13 @@ def clear_data_dir(path: Path) -> None:
             item.unlink()
 
 
+def run_gru_dropout_sweep():
+    snli_architectures.main(
+        gru_dropouts=(0.0, 0.1, 0.2),
+        save_to=ROOT / "data" / "experiments" / "gru-word-dropout",
+    )
+
+
 def main() -> None:
     clear_data_dir(ROOT / "data")
     snli_processing.main()
