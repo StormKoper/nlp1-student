@@ -33,7 +33,10 @@ class SNLIPairTokenizer(clslib.Tokenizer):
         unk_id = self.embedding_model.vocab.default_index
         premise_ids = [self.embedding_model.index(word) for word in premise] or [unk_id]
         hypothesis_ids = [self.embedding_model.index(word) for word in hypothesis] or [unk_id]
-        return list(zip_longest(premise_ids, hypothesis_ids, fillvalue=self.pad_id))
+        ids = premise_ids + hypothesis_ids
+        total = len(ids)
+        unk = sum(i == unk_id for i in ids)   
+        return list(zip_longest(premise_ids, hypothesis_ids, fillvalue=self.pad_id)), total, unk
 
 # running the tokenizer and saving to cache
 def main() -> None:
@@ -56,14 +59,20 @@ def main() -> None:
     # save ids, labels and existing folds for every split. raw text stays in DATA_PATH.
     tokenized_splits = {}
 
+    totals = {}
+    unks = {}
     for split, data in snli.items():
+        split_total = split_unk = 0
 
         # turning tokenizer output into dictionary entries
         def convert_example(example):
             premise = example["premise"]
             hypothesis = example["hypothesis"]
 
-            ids = tokenizer.ids((premise, hypothesis))
+            ids, total, unk = tokenizer.ids((premise, hypothesis))
+            nonlocal split_total, split_unk
+            split_total += total
+            split_unk += unk
 
             return {"input_ids": ids}
 
@@ -78,10 +87,15 @@ def main() -> None:
 
         tokenized_splits[split] = tokenized_data
 
+        totals[split] = split_total
+        unks[split] = split_unk
+
     tokenized = DatasetDict(tokenized_splits)
     tokenized.save_to_disk(TOKENIZATION_PATH)
     print(f"Saved tokenized SNLI to {TOKENIZATION_PATH}")
 
+    for split, total in totals.items():
+        print(f"{str(split).capitalize()}: coverage {total-unks[split]:,} / {total:,} ({(total-unks[split])/total:%})")
 
 if __name__ == "__main__":
     main()
