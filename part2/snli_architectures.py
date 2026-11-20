@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from datasets import load_from_disk
-import os
 
 from . import clslib, experiment
 from .snli_config import DIMS, EMBEDDING, EMBEDDING_PATH, K, ROOT, SEED, SKIP_FIRST, TOKENIZATION_PATH
@@ -44,11 +43,8 @@ def cross_validate(data_splits: dict, embedding_model: clslib.PretrainedEmbeddin
         predictions[folds == fold] = fold_predictions
 
     # save to cache
-    prediction_path = save_to / "predictions"
-    if not os.path.exists(prediction_path):
-        prediction_path.mkdir(parents=True, exist_ok=True)
-
-    prediction_path_model = prediction_path / f"{enc_type}"
+    prediction_path_model = save_to / "predictions" / enc_type
+    prediction_path_model.mkdir(parents=True, exist_ok=True)
     np.save(prediction_path_model / f"snli_{enc_type}.npy", predictions)
     np.save(prediction_path_model / f"snli_{enc_type}_labels.npy", labels)
     np.save(prediction_path_model / f"snli_{enc_type}_folds.npy", folds)
@@ -103,16 +99,28 @@ def main(*, num_epochs=5, freeze_embeddings=True,
         for fold in range(K)
     }
 
-    results_gru = cross_validate(data_splits=data_splits, embedding_model=embedding_model,
-                                 freeze_embeddings=freeze_embeddings,
-                                 num_epochs=num_epochs, enc_type='gru',
-                                 labels=labels, folds=folds
-                                )
-    results_embpool = cross_validate(data_splits=data_splits, embedding_model=embedding_model,
-                                 freeze_embeddings=freeze_embeddings,
-                                 num_epochs=num_epochs, enc_type='embed-and-pool',
-                                 labels=labels, folds=folds
-                                )
+    results_gru = cross_validate(
+        data_splits=data_splits,
+        embedding_model=embedding_model,
+        freeze_embeddings=freeze_embeddings,
+        num_epochs=num_epochs,
+        enc_type="gru",
+        labels=labels,
+        folds=folds,
+        device=device,
+        save_to=save_to,
+    )
+    results_embpool = cross_validate(
+        data_splits=data_splits,
+        embedding_model=embedding_model,
+        freeze_embeddings=freeze_embeddings,
+        num_epochs=num_epochs,
+        enc_type="embed-and-pool",
+        labels=labels,
+        folds=folds,
+        device=device,
+        save_to=save_to,
+    )
     return results_gru, results_embpool
 
 
