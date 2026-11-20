@@ -18,3 +18,4 @@ jax
 numpyro
 arviz
 textstat
+sacremoses

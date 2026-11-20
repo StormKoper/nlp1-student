@@ -4,9 +4,10 @@ from urllib.request import urlretrieve
 from zipfile import ZipFile
 
 import numpy as np
-from .clslib import PretrainedEmbeddings
 from datasets import DatasetDict, concatenate_datasets, load_dataset, load_from_disk
 from sklearn.model_selection import StratifiedKFold
+
+from .clslib import PretrainedEmbeddings
 from .snli_config import (
     DATA_PATH,
     DIMS,
@@ -142,10 +143,6 @@ def print_embedding_summary(trained_emb_model):
         print(f"{i}:{w}")
     for word in ['person', 'human', 'city', 'place', 'camera-ready']:
         print(word, word in trained_emb_model, trained_emb_model.index(word), trained_emb_model.embed_word(word).shape)
-
-
-def fasttext_tokenizer(sentence: str):
-    return sentence.split()
 
 
 def main() -> None:

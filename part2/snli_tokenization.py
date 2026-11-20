@@ -1,10 +1,17 @@
 from itertools import zip_longest
 
 from datasets import DatasetDict, load_from_disk
+from sacremoses import MosesTokenizer
 
 from . import clslib
-from .snli_config import DATA_PATH, DIMS, EMBEDDING, EMBEDDING_PATH, SKIP_FIRST, TOKENIZATION_PATH
-from .snli_processing import fasttext_tokenizer
+from .snli_config import (
+    DATA_PATH,
+    DIMS,
+    EMBEDDING,
+    EMBEDDING_PATH,
+    SKIP_FIRST,
+    TOKENIZATION_PATH,
+)
 
 
 class SNLIPairTokenizer(clslib.Tokenizer):
@@ -13,9 +20,13 @@ class SNLIPairTokenizer(clslib.Tokenizer):
     def __init__(self, embedding_model):
         self.embedding_model = embedding_model
         self.pad_id = embedding_model.vocab.index(embedding_model.pad_token)
+        self.tokenizer = MosesTokenizer(lang="en")
+
+    def tokenize(self, sentence):
+        return self.tokenizer.tokenize(sentence, escape=False)
 
     def tokens(self, pair):
-        return fasttext_tokenizer(pair[0]), fasttext_tokenizer(pair[1])
+        return self.tokenize(pair[0]), self.tokenize(pair[1])
 
     def ids(self, pair):
         premise, hypothesis = self.tokens(pair)
