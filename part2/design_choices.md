@@ -38,7 +38,7 @@ We restore predictions to their original dataset order and save them alongside l
 
     * Have you found task-specific evidence that it's better than some other reasonable alternative?
 
-        *TODO: try running a round of GRU with one of our old embeddings instead and see if this performs better.*
+        *We haven’t established that fastText is better for SNLI. The theoretical advantage over a TF-IDF bag of tokens is that fastText can give related words similar vectors. That could help the model recognize entailment when the premise and hypothesis describe the same scene using different words. However, the same property can also make contradictions harder to spot, since words like standing and sitting often occur in similar contexts. We’d expect the clearest benefit on examples where recognizing a paraphrase matters.* 
 
     * Do you know about limitations of this model? Any limitations that you find particularly troubling for your task? 
 
@@ -47,9 +47,12 @@ We restore predictions to their original dataset order and save them alongside l
 3. Experiment with the embed-and-pool approach.  
     * What design choices have meaningful impact in classification performance (eg, embedding size, architecture design, optimisation parameters), if any?
 
-    *Our implementation averaged the frozen fastText vectors for the premise and hypothesis seperately, excluding padding for the purpose of this aggregation, and then concatenated them. This preserves the role of premise and hypothesis, but discards word order. The implementation supports max, mean, and sum pooling.*
+    *Our implementation averaged the frozen fastText vectors for the premise and hypothesis seperately, excluding padding for the purpose of this aggregation, and then concatenated them. This preserves the role of premise and hypothesis, but discards word order. The implementation supports max, mean, and sum pooling. Of these choices, the pooling type is the most significant design choice, along with the choice to preserve premise and hypothesis.* 
 
     * Is this better than what you could achieve last week? In other words, did pretrained embeddings add to your design?
+
+    *No. On the first SNLI validation fold (109,874 examples), mean pooling with pretrained fastText embeddings reached 58.51% accuracy, compared with 70.55% for last week’s best TF-IDF MLP on that same fold. That’s 12.04 percentage points lower. This comparison covers one fold. The models also used different classifiers. Last week’s MLP had one hidden layer of 128 units, while embed-and-pool used two hidden layers of 50 units each. The score gap therefore reflects the full model changes, but its reasonable to assume that even if we used the same classification head last weeks would still perform better, because the percent difference is so large. The pretrained embeddings added a way to represent lexical similarity. In theory, that helps when a premise mentions a dog and the hypothesis calls it an animal. But averaging can dilute decisive words such as no, which TF-IDF keeps as a distinct feature. That trade-off may partly explain why embed-and-pool performed worse.*
+    
 
     
 4. Experiment with a recurrent encoder (GRU or LSTM). 
@@ -62,12 +65,12 @@ We restore predictions to their original dataset order and save them alongside l
 
 5. We make decisions under uncertainty all the time, are you gathering enough information to substantiate your choices? Various things can lead to small differences in results, and these differences are not always consistent. Here are some things to think about:
     * How did you structure you hyperparameter search?
-    
-        We tested GRU word dropout rates of 0.0, 0.1, and 0.2, using 0.0 as the baseline. We trained each setting for three epochs on the same five stratified SNLI folds. We kept the fastText embeddings frozen and the classifier dropout at 0.1. For each fold, we reported accuracy from the epoch with the lowest validation loss.
+
+        *We tested GRU word dropout rates of 0.0, 0.1, and 0.2, using 0.0 as the baseline. We trained each setting for three epochs on the same five stratified SNLI folds. We kept the fastText embeddings frozen and the classifier dropout at 0.1. For each fold, we reported accuracy from the epoch with the lowest validation loss.*
+
     * Are you keeping an eye on experimental variance?
         
-        We compared the settings fold by fold and calculated the mean and standard deviation of validation accuracy. The means were 72.44%, 71.29%, and 69.65%, with standard deviations of 0.15, 0.10, and 0.20 percentage points, respectively. With word dropout off, the GRU scored higher on all five folds, so we kept it off. We used one training seed, so our results show variation across folds.
-
+        *Yes. We kept track of validation accuracy on each of the five folds and reported the mean and standard deviation for each dropout setting. The means were 72.44%, 71.29%, and 69.65%, with standard deviations of 0.15, 0.10, and 0.20 percentage points, respectively. This shows the result was consistent across folds. We only used one training seed, so variation across seeds is still unknown.*
 
 
 6. Experiment with error analysis and try to discover what characteristics of input texts are predictive of performance differences across major design choices. 
