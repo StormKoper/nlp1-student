@@ -6,6 +6,7 @@ EMBEDDING_PATH: Path = ROOT / "data" / "embedding"
 VOCABULARY_PATH: Path = ROOT / "data" / "vocabulary"
 TOKENIZATION_PATH: Path = ROOT / "data" / "tokenization"
 EMB_AND_POOL_PATH: Path = ROOT / "data" / "emb_and_pool"
+FIGURES_PATH: Path = ROOT / "figures"
 
 # Folding and Seed
 K: int = 5

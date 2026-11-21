@@ -1,5 +1,7 @@
 from itertools import zip_longest
 
+import matplotlib.pyplot as plt
+import numpy as np
 from datasets import DatasetDict, load_from_disk
 from sacremoses import MosesTokenizer
 
@@ -9,6 +11,7 @@ from .snli_config import (
     DIMS,
     EMBEDDING,
     EMBEDDING_PATH,
+    FIGURES_PATH,
     SKIP_FIRST,
     TOKENIZATION_PATH,
 )
@@ -19,6 +22,7 @@ class SNLIPairTokenizer(clslib.Tokenizer):
 
     def __init__(self, embedding_model):
         self.embedding_model = embedding_model
+        self.unk_id = embedding_model.vocab.default_index
         self.pad_id = embedding_model.vocab.index(embedding_model.pad_token)
         self.tokenizer = MosesTokenizer(lang="en")
 
@@ -30,13 +34,46 @@ class SNLIPairTokenizer(clslib.Tokenizer):
 
     def ids(self, pair):
         premise, hypothesis = self.tokens(pair)
-        unk_id = self.embedding_model.vocab.default_index
-        premise_ids = [self.embedding_model.index(word) for word in premise] or [unk_id]
-        hypothesis_ids = [self.embedding_model.index(word) for word in hypothesis] or [unk_id]
-        ids = premise_ids + hypothesis_ids
-        total = len(ids)
-        unk = sum(i == unk_id for i in ids)   
-        return list(zip_longest(premise_ids, hypothesis_ids, fillvalue=self.pad_id)), total, unk
+        premise_ids = [self.embedding_model.index(word) for word in premise] or [self.unk_id]
+        hypothesis_ids = [self.embedding_model.index(word) for word in hypothesis] or [self.unk_id]
+        return premise_ids, hypothesis_ids
+
+
+def plot_length_histograms(lengths, output_path="token_lengths.png"):
+  splits = list(lengths.keys())
+  fig, axes = plt.subplots(
+      len(splits), 2, figsize=(10, 3 * len(splits)),
+      squeeze=False, constrained_layout=True,
+  )
+
+  for row, split in enumerate(splits):
+    prem_lens = np.array(lengths[split]["premise"])
+    hyp_lens = np.array(lengths[split]["hypothesis"])
+
+    for col, (arr, label) in enumerate(
+        [(prem_lens, "Premise"), (hyp_lens, "Hypothesis")],
+    ):
+      ax = axes[row, col]
+      bins = np.arange(0.5, arr.max() + 1.5, 1) if len(arr) else 10
+      ax.hist(arr, bins=bins, edgecolor="black", alpha=0.8)
+      ax.set_title(
+          f"{split.capitalize()} — {label} token count (n={len(arr):,})"
+      )
+      ax.set_xlabel("Number of tokens")
+      ax.set_ylabel("Examples")
+      if len(arr):
+        ax.axvline(
+            arr.mean(),
+            color="red",
+            linestyle="--",
+            linewidth=1,
+            label=f"mean={arr.mean():.1f}",
+        )
+        ax.legend()
+
+  plt.savefig(FIGURES_PATH / output_path, dpi=150)
+  plt.close(fig)
+
 
 # running the tokenizer and saving to cache
 def main() -> None:
@@ -61,20 +98,29 @@ def main() -> None:
 
     totals = {}
     unks = {}
+    lengths = {}
     for split, data in snli.items():
         split_total = split_unk = 0
+        premise_lens = []
+        hypothesis_lens = []
 
         # turning tokenizer output into dictionary entries
         def convert_example(example):
             premise = example["premise"]
             hypothesis = example["hypothesis"]
 
-            ids, total, unk = tokenizer.ids((premise, hypothesis))
-            nonlocal split_total, split_unk
-            split_total += total
-            split_unk += unk
+            premise_ids, hypothesis_ids = tokenizer.ids((premise, hypothesis))
+            paired_ids = list(zip_longest(premise_ids, hypothesis_ids, fillvalue=tokenizer.pad_id))
 
-            return {"input_ids": ids}
+            total = premise_ids + hypothesis_ids
+            unk = sum(i == tokenizer.unk_id for i in total)
+            nonlocal split_total, split_unk
+            split_total += len(total)
+            split_unk += unk
+            premise_lens.append(len(premise_ids))
+            hypothesis_lens.append(len(hypothesis_ids))
+
+            return {"input_ids": paired_ids}
 
         # changes fields from ['premise', 'hypothesis', 'label', 'fold'] to ['label', 'fold', 'input_ids']
         tokenized_data = data.map(
@@ -89,6 +135,10 @@ def main() -> None:
 
         totals[split] = split_total
         unks[split] = split_unk
+        lengths[split] = {
+            "premise": premise_lens,
+            "hypothesis": hypothesis_lens,
+        }
 
     tokenized = DatasetDict(tokenized_splits)
     tokenized.save_to_disk(TOKENIZATION_PATH)
@@ -96,6 +146,9 @@ def main() -> None:
 
     for split, total in totals.items():
         print(f"{str(split).capitalize()}: coverage {total-unks[split]:,} / {total:,} ({(total-unks[split])/total:%})")
+
+    plot_length_histograms(lengths)
+    print("Saved histogram figure")
 
 if __name__ == "__main__":
     main()
