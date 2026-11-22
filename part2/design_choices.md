@@ -27,14 +27,18 @@ We restore predictions to their original dataset order and save them alongside l
 
 1. Find a word embedding model that is appropriate for your dataset. Think about the language, the kind of text you are working with. Find evidence that your choice is a good one: 
     * Can you tokenize your texts in a way coherent with the definition of a token in the embedding model?
+
+        *We have tokenized the texts using the exact tokenizer our embedding model (fastText) was trained on. This is the Europarl tokenizer packaged through Sacremoses.*
+
     * Does the model's vocabulary give enough coverage to the words in your texts? etc.
 
+        *With the matching tokenizer, the vocabulary of the chosen embedding model covers over 99.9% of the tokens in the text.*
 
 
 2. Explore what your chosen word embedding model captures. Some things you might consider: 
     * Is it good at representing interesting similarities (re to your choice of task)? 
 
-        *FastText captures a few interesting similarities that are useful for SNLI. The two main ones are semantic and syntactic similarity. Semantic similarity refers to the fact that words in the same category like dog, cat, and animal receive similar embeddings. This is helpful for SNLI because it allows the model to learn that sentences can entail one another without sharing exactly the same words. Like "a dog is running" as a premise can relate to "an animal is outside" as a hypothesis, and the embeddings help to facilitate the forming of this pattern. Syntactic similarity refers to the fact that some words that play similar gramatical roles, like quckly and slowly or walk and run, will have related embeddings. This is helpful for the SNLI dataset, especially to help distinguish when a label should be neutral or not, based on such relations between premise and hypothesis tokens. The same principle applies in the semantic setting. It is likely that the model can learn that non-similar embedding vectors in the premise and hypothesis more often correspond to a neutral label.*
+        *FastText captures a few interesting similarities that are useful for SNLI. The two main ones are semantic and syntactic similarity. Semantic similarity refers to the fact that words in the same category, like dog, cat, and animal receive similar embeddings. This is helpful for SNLI because it allows the model to learn that sentences can entail one another without sharing exactly the same words. Like "a dog is running" as a premise can relate to "an animal is outside" as a hypothesis, and the embeddings help to facilitate the forming of this pattern. Syntactic similarity refers to the fact that some words that play similar grammatical roles, like quickly and slowly or walk and run, will have related embeddings. This is helpful for the SNLI dataset, especially to help distinguish when a label should be neutral or not, based on such relations between premise and hypothesis tokens. The same principle applies in the semantic setting. It is likely that the model can learn that non-similar embedding vectors in the premise and hypothesis more often correspond to a neutral label.*
 
     * Have you found task-specific evidence that it's better than some other reasonable alternative?
 
@@ -47,20 +51,30 @@ We restore predictions to their original dataset order and save them alongside l
 3. Experiment with the embed-and-pool approach.  
     * What design choices have meaningful impact in classification performance (eg, embedding size, architecture design, optimisation parameters), if any?
 
-    *Our implementation averaged the frozen fastText vectors for the premise and hypothesis seperately, excluding padding for the purpose of this aggregation, and then concatenated them. This preserves the role of premise and hypothesis, but discards word order. The implementation supports max, mean, and sum pooling. Of these choices, the pooling type is the most significant design choice, along with the choice to preserve premise and hypothesis.* 
+    *Our implementation averaged the frozen fastText vectors for the premise and hypothesis separately, excluding padding for the purpose of this aggregation, and then concatenated them. This preserves the role of premise and hypothesis, but discards word order. The implementation supports max, mean, and sum pooling. Of these choices, the pooling type is the most significant design choice, along with the choice to preserve premise and hypothesis.* 
 
     * Is this better than what you could achieve last week? In other words, did pretrained embeddings add to your design?
 
-    *No. On the first SNLI validation fold (109,874 examples), mean pooling with pretrained fastText embeddings reached 58.51% accuracy, compared with 70.55% for last week’s best TF-IDF MLP on that same fold. That’s 12.04 percentage points lower. This comparison covers one fold. The models also used different classifiers. Last week’s MLP had one hidden layer of 128 units, while embed-and-pool used two hidden layers of 50 units each. The score gap therefore reflects the full model changes, but its reasonable to assume that even if we used the same classification head last weeks would still perform better, because the percent difference is so large. The pretrained embeddings added a way to represent lexical similarity. In theory, that helps when a premise mentions a dog and the hypothesis calls it an animal. But averaging can dilute decisive words such as no, which TF-IDF keeps as a distinct feature. That trade-off may partly explain why embed-and-pool performed worse.*
+    *No. On the first SNLI validation fold (109,874 examples), mean pooling with pretrained fastText embeddings reached 58.51% accuracy, compared with 70.55% for last week’s best TF-IDF MLP on that same fold. That’s 12.04 percentage points lower. This comparison covers one fold. The models also used different classifiers. Last week’s MLP had one hidden layer of 128 units, while embed-and-pool used two hidden layers of 50 units each. The score gap therefore reflects the full model changes, but it is reasonable to assume that even if we used the same classification head last weeks would still perform better, because the percent difference is so large. The pretrained embeddings added a way to represent lexical similarity. In theory, that helps when a premise mentions a dog and the hypothesis calls it an animal. But averaging can dilute decisive words such as no, which TF-IDF keeps as a distinct feature. That trade-off may partly explain why embed-and-pool performed worse.*
     
 
     
 4. Experiment with a recurrent encoder (GRU or LSTM). 
     * What design choices have meaningful impact in classification performance, if any?
+
+        *Due to limited compute, we only tested the impact of the word dropout hyperparameter. Increasing this value reduced model performance.*
+
     * Did you investigate the impact of data size, embedding parameters (trained or not, fixed or trainable, etc)?
+
+        *No.*
+
     * Did you struggle with over-fitting?
+
+        *No. With our limited compute budget and the cross-validation, we only trained the model for a limited number of epochs (5 for regular training and 3 for hyperparameter search). With this limited training configuration, we observed no divergence of the training and validation metrics, taking into account that the word dropout only occurs in training and thus disproportionately favors the validation metrics. Additionally, with freezing the embedding model and choosing a single-layer GRU with a hidden dimensionality of 128 trained on this corpus of half a million examples, the risk of overfitting is already small.*
+
     * How far can this approach go? Are you able to improve meaningfully on embed-and-pool?
 
+        *Yes.*
 
 
 5. We make decisions under uncertainty all the time, are you gathering enough information to substantiate your choices? Various things can lead to small differences in results, and these differences are not always consistent. Here are some things to think about:
